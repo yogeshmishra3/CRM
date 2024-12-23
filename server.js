@@ -26,6 +26,9 @@ const DataSchema = new mongoose.Schema({
 
 const DataModel = mongoose.model('Data', DataSchema);
 
+app.get('/', (req, res) => {
+    res.send('Hello, World!');
+});
 // API Route to handle POST request
 app.post('/api/store', async (req, res) => {
     const { name, email, message } = req.body;
