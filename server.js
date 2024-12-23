@@ -11,7 +11,7 @@ app.use(express.json());
 
 // Connect to MongoDB Atlas
 mongoose.connect(
-    `'mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/mydatabase?retryWrites=true&w=majority'`,
+    "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Dogesh",
     { useNewUrlParser: true, useUnifiedTopology: true }
 )
     .then(() => console.log('Connected to MongoDB Atlas'))
