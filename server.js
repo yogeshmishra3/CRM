@@ -17,7 +17,7 @@ mongoose.connect(
     .then(() => console.log('Connected to MongoDB Atlas'))
     .catch((err) => console.error('MongoDB connection error:', err));
 
-// Define a Mongoose schema and model
+// Define a Mongoose schema and model for data
 const DataSchema = new mongoose.Schema({
     name: String,
     email: String,
@@ -26,10 +26,22 @@ const DataSchema = new mongoose.Schema({
 
 const DataModel = mongoose.model('Data', DataSchema);
 
+// Define a Mongoose schema and model for tasks
+const TaskSchema = new mongoose.Schema({
+    taskName: String,
+    taskDescription: String,
+    taskStatus: String,
+    createdAt: { type: Date, default: Date.now },
+});
+
+const TaskModel = mongoose.model('Task', TaskSchema);
+
+// API Route to fetch data
 app.get('/', (req, res) => {
     res.send('Hello, World!');
 });
-// API Route to handle POST request
+
+// API Route to store data
 app.post('/api/store', async (req, res) => {
     const { name, email, message } = req.body;
     try {
@@ -41,6 +53,24 @@ app.post('/api/store', async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to save data' });
     }
 });
+
+// API Route to add a new task
+app.post('/api/tasks', async (req, res) => {
+    const { taskName, taskDescription, taskStatus } = req.body;
+    const task = new TaskModel({
+        taskName,
+        taskDescription,
+        taskStatus,
+    });
+    try {
+        await task.save();
+        res.status(201).json({ success: true, message: 'Task added' });
+    } catch (error) {
+        console.error('Error adding task:', error);
+        res.status(500).json({ success: false, message: 'Error adding task' });
+    }
+});
+
 
 // Start the server
 module.exports = (req, res) => {
