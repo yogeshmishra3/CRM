@@ -267,7 +267,7 @@ app.delete('/api/quotes/:id', (req, res) => {
     res.status(204).send();
 });
 // GET all contacts
-app.get('/contacts', async (req, res) => {
+app.get('/api/contacts', async (req, res) => {
     try {
         const contacts = await Contact.find();
         res.status(200).json(contacts);
@@ -277,7 +277,7 @@ app.get('/contacts', async (req, res) => {
 });
 
 // POST (Create) a new contact
-app.post('/contacts', async (req, res) => {
+app.post('/api/contacts', async (req, res) => {
     try {
         const { name, email, phone, address } = req.body;
         const contact = new Contact({ name, email, phone, address });
@@ -289,7 +289,7 @@ app.post('/contacts', async (req, res) => {
 });
 
 // PUT (Update) a contact
-app.put('/contacts/:id', async (req, res) => {
+app.put('/api/contacts/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { name, email, phone, address } = req.body;
@@ -304,7 +304,7 @@ app.put('/contacts/:id', async (req, res) => {
 });
 
 // DELETE a contact
-app.delete('/contacts/:id', async (req, res) => {
+app.delete('/api/contacts/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const contact = await Contact.findByIdAndDelete(id);
