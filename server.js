@@ -147,12 +147,8 @@ app.delete('/api/projects/:id', async (req, res) => {
     }
 });
 
-// Start the server
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
 
-// // Start the server
-// module.exports = (req, res) => {
-//     app(req, res); // Pass request and response to the express app
-// };
+// Start the server
+module.exports = (req, res) => {
+    app(req, res); // Pass request and response to the express app
+};
