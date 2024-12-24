@@ -36,9 +36,15 @@ const TaskSchema = new mongoose.Schema({
 
 const TaskModel = mongoose.model('Task', TaskSchema);
 
-// API Route to fetch data
-app.get('/', (req, res) => {
-    res.send('Hello, World!');
+// API Route to fetch all tasks
+app.get('/api/tasks', async (req, res) => {
+    try {
+        const tasks = await TaskModel.find(); // Fetch all tasks from the database
+        res.status(200).json(tasks); // Send the tasks as JSON response
+    } catch (error) {
+        console.error('Error fetching tasks:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch tasks' });
+    }
 });
 
 // API Route to store data
@@ -70,7 +76,6 @@ app.post('/api/tasks', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error adding task' });
     }
 });
-
 
 // Start the server
 module.exports = (req, res) => {
