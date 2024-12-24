@@ -36,31 +36,27 @@ const TaskSchema = new mongoose.Schema({
 
 const TaskModel = mongoose.model('Task', TaskSchema);
 
-// API Route to fetch all tasks
+// Define a Mongoose schema and model for projects
+const ProjectSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    date: { type: Date, required: true },
+    team: { type: String, required: true },
+    status: { type: String, required: true },
+});
+
+const ProjectModel = mongoose.model('Project', ProjectSchema);
+
+// Tasks APIs
 app.get('/api/tasks', async (req, res) => {
     try {
-        const tasks = await TaskModel.find(); // Fetch all tasks from the database
-        res.status(200).json(tasks); // Send the tasks as JSON response
+        const tasks = await TaskModel.find();
+        res.status(200).json(tasks);
     } catch (error) {
         console.error('Error fetching tasks:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch tasks' });
     }
 });
 
-// API Route to store data
-app.post('/api/store', async (req, res) => {
-    const { name, email, message } = req.body;
-    try {
-        const newData = new DataModel({ name, email, message });
-        await newData.save();
-        res.status(201).json({ success: true, message: 'Data saved successfully' });
-    } catch (error) {
-        console.error('Error saving data:', error);
-        res.status(500).json({ success: false, message: 'Failed to save data' });
-    }
-});
-
-// API Route to add a new task
 app.post('/api/tasks', async (req, res) => {
     const { taskName, taskDescription, taskStatus } = req.body;
     const task = new TaskModel({
@@ -77,7 +73,86 @@ app.post('/api/tasks', async (req, res) => {
     }
 });
 
+// Data APIs
+app.post('/api/store', async (req, res) => {
+    const { name, email, message } = req.body;
+    try {
+        const newData = new DataModel({ name, email, message });
+        await newData.save();
+        res.status(201).json({ success: true, message: 'Data saved successfully' });
+    } catch (error) {
+        console.error('Error saving data:', error);
+        res.status(500).json({ success: false, message: 'Failed to save data' });
+    }
+});
+
+// Projects APIs
+app.get('/api/projects', async (req, res) => {
+    try {
+        const projects = await ProjectModel.find();
+        res.status(200).json(projects);
+    } catch (error) {
+        console.error('Error fetching projects:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch projects' });
+    }
+});
+
+app.post('/api/projects', async (req, res) => {
+    const { name, date, team, status } = req.body;
+    const project = new ProjectModel({
+        name,
+        date,
+        team,
+        status,
+    });
+    try {
+        await project.save();
+        res.status(201).json({ success: true, message: 'Project added', project });
+    } catch (error) {
+        console.error('Error adding project:', error);
+        res.status(500).json({ success: false, message: 'Error adding project' });
+    }
+});
+
+app.put('/api/projects/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, date, team, status } = req.body;
+    try {
+        const updatedProject = await ProjectModel.findByIdAndUpdate(
+            id,
+            { name, date, team, status },
+            { new: true }
+        );
+        if (!updatedProject) {
+            return res.status(404).json({ success: false, message: 'Project not found' });
+        }
+        res.status(200).json({ success: true, message: 'Project updated', project: updatedProject });
+    } catch (error) {
+        console.error('Error updating project:', error);
+        res.status(500).json({ success: false, message: 'Error updating project' });
+    }
+});
+
+app.delete('/api/projects/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedProject = await ProjectModel.findByIdAndDelete(id);
+        if (!deletedProject) {
+            return res.status(404).json({ success: false, message: 'Project not found' });
+        }
+        res.status(200).json({ success: true, message: 'Project deleted', project: deletedProject });
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        res.status(500).json({ success: false, message: 'Error deleting project' });
+    }
+});
+
 // Start the server
-module.exports = (req, res) => {
-    app(req, res); // Pass request and response to the express app
-};
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// // Start the server
+// module.exports = (req, res) => {
+//     app(req, res); // Pass request and response to the express app
+// };
