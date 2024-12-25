@@ -18,8 +18,6 @@ mongoose.connect(
     .catch((err) => console.error('MongoDB connection error:', err));
 
 // Define Schemas and Models
-
-// Data Schema and Model
 const DataSchema = new mongoose.Schema({
     name: String,
     email: String,
@@ -27,7 +25,6 @@ const DataSchema = new mongoose.Schema({
 });
 const DataModel = mongoose.model('Data', DataSchema);
 
-// Task Schema and Model
 const TaskSchema = new mongoose.Schema({
     taskName: String,
     taskDescription: String,
@@ -36,7 +33,6 @@ const TaskSchema = new mongoose.Schema({
 });
 const TaskModel = mongoose.model('Task', TaskSchema);
 
-// Project Schema and Model
 const ProjectSchema = new mongoose.Schema({
     name: { type: String, required: true },
     date: { type: Date, required: true },
@@ -45,7 +41,6 @@ const ProjectSchema = new mongoose.Schema({
 });
 const ProjectModel = mongoose.model('Project', ProjectSchema);
 
-// Organization Schema and Model
 const OrganizationSchema = new mongoose.Schema({
     name: { type: String, required: true },
     type: { type: String, required: true },
@@ -57,7 +52,6 @@ const OrganizationSchema = new mongoose.Schema({
 });
 const Organization = mongoose.model('Organization', OrganizationSchema);
 
-// Contact Schema and Model
 const ContactSchema = new mongoose.Schema({
     name: String,
     email: String,
@@ -71,13 +65,16 @@ const Contact = mongoose.model('Contact', ContactSchema);
 // Data APIs
 app.post('/api/store', async (req, res) => {
     const { name, email, message } = req.body;
+    if (!name || !email || !message) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
     try {
         const newData = new DataModel({ name, email, message });
         await newData.save();
         res.status(201).json({ success: true, message: 'Data saved successfully' });
     } catch (error) {
         console.error('Error saving data:', error);
-        res.status(500).json({ success: false, message: 'Failed to save data' });
+        res.status(500).json({ success: false, message: 'Failed to save data', error: error.message });
     }
 });
 
@@ -85,26 +82,25 @@ app.post('/api/store', async (req, res) => {
 app.get('/api/tasks', async (req, res) => {
     try {
         const tasks = await TaskModel.find();
-        res.status(200).json(tasks);
+        res.status(200).json({ success: true, tasks });
     } catch (error) {
         console.error('Error fetching tasks:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch tasks' });
+        res.status(500).json({ success: false, message: 'Failed to fetch tasks', error: error.message });
     }
 });
 
 app.post('/api/tasks', async (req, res) => {
     const { taskName, taskDescription, taskStatus } = req.body;
-    const task = new TaskModel({
-        taskName,
-        taskDescription,
-        taskStatus,
-    });
+    if (!taskName || !taskDescription || !taskStatus) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
     try {
+        const task = new TaskModel({ taskName, taskDescription, taskStatus });
         await task.save();
         res.status(201).json({ success: true, message: 'Task added' });
     } catch (error) {
         console.error('Error adding task:', error);
-        res.status(500).json({ success: false, message: 'Error adding task' });
+        res.status(500).json({ success: false, message: 'Error adding task', error: error.message });
     }
 });
 
@@ -112,27 +108,25 @@ app.post('/api/tasks', async (req, res) => {
 app.get('/api/projects', async (req, res) => {
     try {
         const projects = await ProjectModel.find();
-        res.status(200).json(projects);
+        res.status(200).json({ success: true, projects });
     } catch (error) {
         console.error('Error fetching projects:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch projects' });
+        res.status(500).json({ success: false, message: 'Failed to fetch projects', error: error.message });
     }
 });
 
 app.post('/api/projects', async (req, res) => {
     const { name, date, team, status } = req.body;
-    const project = new ProjectModel({
-        name,
-        date,
-        team,
-        status,
-    });
+    if (!name || !date || !team || !status) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
     try {
+        const project = new ProjectModel({ name, date, team, status });
         await project.save();
         res.status(201).json({ success: true, message: 'Project added', project });
     } catch (error) {
         console.error('Error adding project:', error);
-        res.status(500).json({ success: false, message: 'Error adding project' });
+        res.status(500).json({ success: false, message: 'Error adding project', error: error.message });
     }
 });
 
@@ -140,18 +134,14 @@ app.put('/api/projects/:id', async (req, res) => {
     const { id } = req.params;
     const { name, date, team, status } = req.body;
     try {
-        const updatedProject = await ProjectModel.findByIdAndUpdate(
-            id,
-            { name, date, team, status },
-            { new: true }
-        );
+        const updatedProject = await ProjectModel.findByIdAndUpdate(id, { name, date, team, status }, { new: true });
         if (!updatedProject) {
             return res.status(404).json({ success: false, message: 'Project not found' });
         }
         res.status(200).json({ success: true, message: 'Project updated', project: updatedProject });
     } catch (error) {
         console.error('Error updating project:', error);
-        res.status(500).json({ success: false, message: 'Error updating project' });
+        res.status(500).json({ success: false, message: 'Error updating project', error: error.message });
     }
 });
 
@@ -162,10 +152,10 @@ app.delete('/api/projects/:id', async (req, res) => {
         if (!deletedProject) {
             return res.status(404).json({ success: false, message: 'Project not found' });
         }
-        res.status(200).json({ success: true, message: 'Project deleted', project: deletedProject });
+        res.status(200).json({ success: true, message: 'Project deleted' });
     } catch (error) {
         console.error('Error deleting project:', error);
-        res.status(500).json({ success: false, message: 'Error deleting project' });
+        res.status(500).json({ success: false, message: 'Error deleting project', error: error.message });
     }
 });
 
@@ -173,22 +163,23 @@ app.delete('/api/projects/:id', async (req, res) => {
 app.get('/api/organizations', async (req, res) => {
     try {
         const organizations = await Organization.find();
-        res.status(200).json(organizations);
+        res.status(200).json({ success: true, organizations });
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching organizations' });
+        res.status(500).json({ success: false, message: 'Error fetching organizations', error: error.message });
     }
 });
 
 app.post('/api/organizations', async (req, res) => {
     const { name, type, date, customer, balance, total, status } = req.body;
+    if (!name || !type || !date || !customer || !balance || !total || !status) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
     try {
-        const newOrganization = new Organization({
-            name, type, date, customer, balance, total, status
-        });
+        const newOrganization = new Organization({ name, type, date, customer, balance, total, status });
         await newOrganization.save();
-        res.status(201).json({ message: 'Organization added successfully' });
+        res.status(201).json({ success: true, message: 'Organization added successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Error adding organization' });
+        res.status(500).json({ success: false, message: 'Error adding organization', error: error.message });
     }
 });
 
@@ -196,16 +187,17 @@ app.put('/api/organizations/:id', async (req, res) => {
     const { id } = req.params;
     const { name, type, date, customer, balance, total, status } = req.body;
     try {
-        const updatedOrganization = await Organization.findByIdAndUpdate(id, {
-            name, type, date, customer, balance, total, status
-        }, { new: true });
-
+        const updatedOrganization = await Organization.findByIdAndUpdate(
+            id,
+            { name, type, date, customer, balance, total, status },
+            { new: true }
+        );
         if (!updatedOrganization) {
-            return res.status(404).json({ message: 'Organization not found' });
+            return res.status(404).json({ success: false, message: 'Organization not found' });
         }
-        res.status(200).json({ message: 'Organization updated successfully', updatedOrganization });
+        res.status(200).json({ success: true, message: 'Organization updated successfully', organization: updatedOrganization });
     } catch (error) {
-        res.status(500).json({ message: 'Error updating organization' });
+        res.status(500).json({ success: false, message: 'Error updating organization', error: error.message });
     }
 });
 
@@ -214,11 +206,11 @@ app.delete('/api/organizations/:id', async (req, res) => {
     try {
         const deletedOrganization = await Organization.findByIdAndDelete(id);
         if (!deletedOrganization) {
-            return res.status(404).json({ message: 'Organization not found' });
+            return res.status(404).json({ success: false, message: 'Organization not found' });
         }
-        res.status(200).json({ message: 'Organization deleted successfully' });
+        res.status(200).json({ success: true, message: 'Organization deleted successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Error deleting organization' });
+        res.status(500).json({ success: false, message: 'Error deleting organization', error: error.message });
     }
 });
 
@@ -226,47 +218,50 @@ app.delete('/api/organizations/:id', async (req, res) => {
 app.get('/api/contacts', async (req, res) => {
     try {
         const contacts = await Contact.find();
-        res.status(200).json(contacts);
+        res.status(200).json({ success: true, contacts });
     } catch (err) {
-        res.status(500).json({ message: 'Error fetching contacts' });
+        res.status(500).json({ success: false, message: 'Error fetching contacts', error: err.message });
     }
 });
 
 app.post('/api/contacts', async (req, res) => {
+    const { name, email, phone, address } = req.body;
+    if (!name || !email || !phone || !address) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
     try {
-        const { name, email, phone, address } = req.body;
         const contact = new Contact({ name, email, phone, address });
         await contact.save();
-        res.status(201).json({ message: 'Contact created successfully!' });
+        res.status(201).json({ success: true, message: 'Contact created successfully' });
     } catch (err) {
-        res.status(500).json({ message: 'Error creating contact' });
+        res.status(500).json({ success: false, message: 'Error creating contact', error: err.message });
     }
 });
 
 app.put('/api/contacts/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, email, phone, address } = req.body;
     try {
-        const { id } = req.params;
-        const { name, email, phone, address } = req.body;
         const contact = await Contact.findByIdAndUpdate(id, { name, email, phone, address }, { new: true });
         if (!contact) {
-            return res.status(404).json({ message: 'Contact not found' });
+            return res.status(404).json({ success: false, message: 'Contact not found' });
         }
-        res.status(200).json(contact);
+        res.status(200).json({ success: true, message: 'Contact updated successfully', contact });
     } catch (err) {
-        res.status(500).json({ message: 'Error updating contact' });
+        res.status(500).json({ success: false, message: 'Error updating contact', error: err.message });
     }
 });
 
 app.delete('/api/contacts/:id', async (req, res) => {
+    const { id } = req.params;
     try {
-        const { id } = req.params;
         const contact = await Contact.findByIdAndDelete(id);
         if (!contact) {
-            return res.status(404).json({ message: 'Contact not found' });
+            return res.status(404).json({ success: false, message: 'Contact not found' });
         }
-        res.status(200).json({ message: 'Contact deleted successfully!' });
+        res.status(200).json({ success: true, message: 'Contact deleted successfully' });
     } catch (err) {
-        res.status(500).json({ message: 'Error deleting contact' });
+        res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
     }
 });
 
@@ -274,15 +269,15 @@ app.delete('/api/contacts/:id', async (req, res) => {
 let quotesData = [];
 
 app.get('/api/quotes', (req, res) => {
-    res.json(quotesData);
+    res.json({ success: true, quotes: quotesData });
 });
 
 app.get('/api/quotes/:id', (req, res) => {
     const quote = quotesData.find(q => q.id === parseInt(req.params.id));
     if (quote) {
-        res.json(quote);
+        res.json({ success: true, quote });
     } else {
-        res.status(404).json({ message: 'Quote not found' });
+        res.status(404).json({ success: false, message: 'Quote not found' });
     }
 });
 
@@ -297,7 +292,7 @@ app.post('/api/quotes', (req, res) => {
         value
     };
     quotesData.push(newQuote);
-    res.status(201).json(newQuote);
+    res.status(201).json({ success: true, quote: newQuote });
 });
 
 app.put('/api/quotes/:id', (req, res) => {
@@ -307,18 +302,18 @@ app.put('/api/quotes/:id', (req, res) => {
     let quote = quotesData.find(q => q.id === quoteId);
     if (quote) {
         quote = { ...quote, date, title, customer, status, value };
-        quotesData = quotesData.map(q => (q.id === quoteId ? quote : q));
-        res.json(quote);
+        res.json({ success: true, quote });
     } else {
-        res.status(404).json({ message: 'Quote not found' });
+        res.status(404).json({ success: false, message: 'Quote not found' });
     }
 });
 
 app.delete('/api/quotes/:id', (req, res) => {
     const quoteId = parseInt(req.params.id);
     quotesData = quotesData.filter(q => q.id !== quoteId);
-    res.status(204).send();
+    res.status(200).json({ success: true, message: 'Quote deleted' });
 });
+
 
 // Export for serverless functions
 module.exports = (req, res) => {
