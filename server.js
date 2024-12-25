@@ -17,36 +17,71 @@ mongoose.connect(
     .then(() => console.log('Connected to MongoDB Atlas'))
     .catch((err) => console.error('MongoDB connection error:', err));
 
-// Define a Mongoose schema and model for data
+// Define Schemas and Models
+
+// Data Schema and Model
 const DataSchema = new mongoose.Schema({
     name: String,
     email: String,
     message: String,
 });
-
 const DataModel = mongoose.model('Data', DataSchema);
 
-// Define a Mongoose schema and model for tasks
+// Task Schema and Model
 const TaskSchema = new mongoose.Schema({
     taskName: String,
     taskDescription: String,
     taskStatus: String,
     createdAt: { type: Date, default: Date.now },
 });
-
 const TaskModel = mongoose.model('Task', TaskSchema);
 
-// Define a Mongoose schema and model for projects
+// Project Schema and Model
 const ProjectSchema = new mongoose.Schema({
     name: { type: String, required: true },
     date: { type: Date, required: true },
     team: { type: String, required: true },
     status: { type: String, required: true },
 });
-
 const ProjectModel = mongoose.model('Project', ProjectSchema);
 
-// Tasks APIs
+// Organization Schema and Model
+const OrganizationSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    type: { type: String, required: true },
+    date: { type: Date, required: true },
+    customer: { type: String, required: true },
+    balance: { type: String, required: true },
+    total: { type: String, required: true },
+    status: { type: String, required: true },
+});
+const Organization = mongoose.model('Organization', OrganizationSchema);
+
+// Contact Schema and Model
+const ContactSchema = new mongoose.Schema({
+    name: String,
+    email: String,
+    phone: String,
+    address: String,
+});
+const Contact = mongoose.model('Contact', ContactSchema);
+
+// API Routes
+
+// Data APIs
+app.post('/api/store', async (req, res) => {
+    const { name, email, message } = req.body;
+    try {
+        const newData = new DataModel({ name, email, message });
+        await newData.save();
+        res.status(201).json({ success: true, message: 'Data saved successfully' });
+    } catch (error) {
+        console.error('Error saving data:', error);
+        res.status(500).json({ success: false, message: 'Failed to save data' });
+    }
+});
+
+// Task APIs
 app.get('/api/tasks', async (req, res) => {
     try {
         const tasks = await TaskModel.find();
@@ -73,20 +108,7 @@ app.post('/api/tasks', async (req, res) => {
     }
 });
 
-// Data APIs
-app.post('/api/store', async (req, res) => {
-    const { name, email, message } = req.body;
-    try {
-        const newData = new DataModel({ name, email, message });
-        await newData.save();
-        res.status(201).json({ success: true, message: 'Data saved successfully' });
-    } catch (error) {
-        console.error('Error saving data:', error);
-        res.status(500).json({ success: false, message: 'Failed to save data' });
-    }
-});
-
-// Projects APIs
+// Project APIs
 app.get('/api/projects', async (req, res) => {
     try {
         const projects = await ProjectModel.find();
@@ -147,20 +169,7 @@ app.delete('/api/projects/:id', async (req, res) => {
     }
 });
 
-// Define Organization schema
-const OrganizationSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    type: { type: String, required: true },
-    date: { type: Date, required: true },
-    customer: { type: String, required: true },
-    balance: { type: String, required: true },
-    total: { type: String, required: true },
-    status: { type: String, required: true },
-});
-
-const Organization = mongoose.model('Organization', OrganizationSchema);
-
-// Fetch all organizations
+// Organization APIs
 app.get('/api/organizations', async (req, res) => {
     try {
         const organizations = await Organization.find();
@@ -170,7 +179,6 @@ app.get('/api/organizations', async (req, res) => {
     }
 });
 
-// Add new organization
 app.post('/api/organizations', async (req, res) => {
     const { name, type, date, customer, balance, total, status } = req.body;
     try {
@@ -184,7 +192,6 @@ app.post('/api/organizations', async (req, res) => {
     }
 });
 
-// Edit organization
 app.put('/api/organizations/:id', async (req, res) => {
     const { id } = req.params;
     const { name, type, date, customer, balance, total, status } = req.body;
@@ -202,7 +209,6 @@ app.put('/api/organizations/:id', async (req, res) => {
     }
 });
 
-// Delete organization
 app.delete('/api/organizations/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -215,58 +221,8 @@ app.delete('/api/organizations/:id', async (req, res) => {
         res.status(500).json({ message: 'Error deleting organization' });
     }
 });
-// Get all quotes
-app.get('/api/quotes', (req, res) => {
-    res.json(quotesData);
-});
 
-// Get a specific quote by ID
-app.get('/api/quotes/:id', (req, res) => {
-    const quote = quotesData.find(q => q.id === parseInt(req.params.id));
-    if (quote) {
-        res.json(quote);
-    } else {
-        res.status(404).json({ message: 'Quote not found' });
-    }
-});
-
-// Create a new quote
-app.post('/api/quotes', (req, res) => {
-    const { date, title, customer, status, value } = req.body;
-    const newQuote = {
-        id: quotesData.length + 1,
-        date,
-        title,
-        customer,
-        status,
-        value
-    };
-    quotesData.push(newQuote);
-    res.status(201).json(newQuote);
-});
-
-// Update a quote
-app.put('/api/quotes/:id', (req, res) => {
-    const quoteId = parseInt(req.params.id);
-    const { date, title, customer, status, value } = req.body;
-
-    let quote = quotesData.find(q => q.id === quoteId);
-    if (quote) {
-        quote = { ...quote, date, title, customer, status, value };
-        quotesData = quotesData.map(q => (q.id === quoteId ? quote : q));
-        res.json(quote);
-    } else {
-        res.status(404).json({ message: 'Quote not found' });
-    }
-});
-
-// Delete a quote
-app.delete('/api/quotes/:id', (req, res) => {
-    const quoteId = parseInt(req.params.id);
-    quotesData = quotesData.filter(q => q.id !== quoteId);
-    res.status(204).send();
-});
-// GET all contacts
+// Contact APIs
 app.get('/api/contacts', async (req, res) => {
     try {
         const contacts = await Contact.find();
@@ -276,7 +232,6 @@ app.get('/api/contacts', async (req, res) => {
     }
 });
 
-// POST (Create) a new contact
 app.post('/api/contacts', async (req, res) => {
     try {
         const { name, email, phone, address } = req.body;
@@ -288,7 +243,6 @@ app.post('/api/contacts', async (req, res) => {
     }
 });
 
-// PUT (Update) a contact
 app.put('/api/contacts/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -303,7 +257,6 @@ app.put('/api/contacts/:id', async (req, res) => {
     }
 });
 
-// DELETE a contact
 app.delete('/api/contacts/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -316,7 +269,58 @@ app.delete('/api/contacts/:id', async (req, res) => {
         res.status(500).json({ message: 'Error deleting contact' });
     }
 });
-// Start the server
+
+// Quotes APIs
+let quotesData = [];
+
+app.get('/api/quotes', (req, res) => {
+    res.json(quotesData);
+});
+
+app.get('/api/quotes/:id', (req, res) => {
+    const quote = quotesData.find(q => q.id === parseInt(req.params.id));
+    if (quote) {
+        res.json(quote);
+    } else {
+        res.status(404).json({ message: 'Quote not found' });
+    }
+});
+
+app.post('/api/quotes', (req, res) => {
+    const { date, title, customer, status, value } = req.body;
+    const newQuote = {
+        id: quotesData.length + 1,
+        date,
+        title,
+        customer,
+        status,
+        value
+    };
+    quotesData.push(newQuote);
+    res.status(201).json(newQuote);
+});
+
+app.put('/api/quotes/:id', (req, res) => {
+    const quoteId = parseInt(req.params.id);
+    const { date, title, customer, status, value } = req.body;
+
+    let quote = quotesData.find(q => q.id === quoteId);
+    if (quote) {
+        quote = { ...quote, date, title, customer, status, value };
+        quotesData = quotesData.map(q => (q.id === quoteId ? quote : q));
+        res.json(quote);
+    } else {
+        res.status(404).json({ message: 'Quote not found' });
+    }
+});
+
+app.delete('/api/quotes/:id', (req, res) => {
+    const quoteId = parseInt(req.params.id);
+    quotesData = quotesData.filter(q => q.id !== quoteId);
+    res.status(204).send();
+});
+
+// Export for serverless functions
 module.exports = (req, res) => {
-    app(req, res); // Pass request and response to the express app
+    app(req, res);
 };
