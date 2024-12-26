@@ -29,14 +29,6 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/contacts', contactRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
-
-// app.listen(PORT, () => {
-//     console.log(`Server running on port ${PORT}`);
-// });
-
 // Export for serverless functions
 module.exports = (req, res) => {
     app(req, res);
