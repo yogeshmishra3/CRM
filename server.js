@@ -189,11 +189,11 @@ app.post('/api/tasks', async (req, res) => {
 // Leads APIs
 app.get('/api/Leads', async (req, res) => {
     try {
-        const Leadss = await LeadsModel.find();
-        res.status(200).json({ success: true, Leadss });
+        const Leads = await LeadsModel.find();
+        res.status(200).json({ success: true, Leads });
     } catch (error) {
-        console.error('Error fetching Leadss:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch Leadss', error: error.message });
+        console.error('Error fetching Leads:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch Leads', error: error.message });
     }
 });
 
