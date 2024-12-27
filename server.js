@@ -11,7 +11,7 @@ app.use(express.json());
 
 // Connect to MongoDB Atlas
 mongoose.connect(
-    "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Dogesh",
+    "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Doges",
     { useNewUrlParser: true, useUnifiedTopology: true }
 )
     .then(() => console.log('Connected to MongoDB Atlas'))
@@ -33,13 +33,13 @@ const TaskSchema = new mongoose.Schema({
 });
 const TaskModel = mongoose.model('Task', TaskSchema);
 
-const ProjectSchema = new mongoose.Schema({
+const LeadsSchema = new mongoose.Schema({
     name: { type: String, required: true },
     date: { type: Date, required: true },
     team: { type: String, required: true },
     status: { type: String, required: true },
 });
-const ProjectModel = mongoose.model('Project', ProjectSchema);
+const LeadsModel = mongoose.model('Leads', LeadsSchema);
 
 const OrganizationSchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -60,7 +60,89 @@ const ContactSchema = new mongoose.Schema({
 });
 const Contact = mongoose.model('Contact', ContactSchema);
 
+const dealSchema = new mongoose.Schema({
+    name: String,
+    amount: Number,
+    owner: String,
+    stage: String,
+});
+const Deal = mongoose.model('Deal', dealSchema);
+
 // API Routes
+// get all api
+app.get('/api/deals', async (req, res) => {
+    try {
+        const deals = await Deal.find();
+        res.json(deals);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching deals' });
+    }
+});
+
+// Routes
+
+// GET all deals
+app.get('/api/deals', async (req, res) => {
+    try {
+        const deals = await Deal.find();
+        res.json(deals);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching deals' });
+    }
+});
+
+// POST a new deal
+app.post('/api/deals', async (req, res) => {
+    const { name, amount, owner, stage } = req.body;
+    try {
+        const newDeal = new Deal({ name, amount, owner, stage });
+        await newDeal.save();
+        res.status(201).json(newDeal);
+    } catch (err) {
+        res.status(400).json({ message: 'Error creating deal' });
+    }
+});
+
+// PUT (update) a deal's stage
+app.put('/api/deals/:id', async (req, res) => {
+    const { id } = req.params;
+    const { stage } = req.body;
+    try {
+        const updatedDeal = await Deal.findByIdAndUpdate(id, { stage }, { new: true });
+        if (!updatedDeal) {
+            return res.status(404).json({ message: 'Deal not found' });
+        }
+        res.json(updatedDeal);
+    } catch (err) {
+        res.status(500).json({ message: 'Error updating deal' });
+    }
+});
+
+
+
+app.post('/api/deals', async (req, res) => {
+    const { name, amount, owner, stage } = req.body;
+    try {
+        const deal = new Deal({ name, amount, owner, stage });
+        await deal.save();
+        res.status(201).json(newDeal);
+    } catch (error) {
+        res.status(400).json({ message: 'Error creating deal' });
+    }
+});
+// delete a deal
+app.delete('/api/deals/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const deal = await Deal.findByIdAndDelete(id);
+        if (!deal) {
+            return res.status(404).json({ message: 'Deal not found' });
+        }
+        res.json({ message: 'Deal deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting deal' });
+    }
+});
 
 // Data APIs
 app.post('/api/store', async (req, res) => {
@@ -104,58 +186,58 @@ app.post('/api/tasks', async (req, res) => {
     }
 });
 
-// Project APIs
-app.get('/api/projects', async (req, res) => {
+// Leads APIs
+app.get('/api/Leads', async (req, res) => {
     try {
-        const projects = await ProjectModel.find();
-        res.status(200).json({ success: true, projects });
+        const Leadss = await LeadsModel.find();
+        res.status(200).json({ success: true, Leadss });
     } catch (error) {
-        console.error('Error fetching projects:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch projects', error: error.message });
+        console.error('Error fetching Leadss:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch Leadss', error: error.message });
     }
 });
 
-app.post('/api/projects', async (req, res) => {
+app.post('/api/Leads', async (req, res) => {
     const { name, date, team, status } = req.body;
     if (!name || !date || !team || !status) {
         return res.status(400).json({ success: false, message: 'All fields are required' });
     }
     try {
-        const project = new ProjectModel({ name, date, team, status });
-        await project.save();
-        res.status(201).json({ success: true, message: 'Project added', project });
+        const Leads = new LeadsModel({ name, date, team, status });
+        await Leads.save();
+        res.status(201).json({ success: true, message: 'Leads added', Leads });
     } catch (error) {
-        console.error('Error adding project:', error);
-        res.status(500).json({ success: false, message: 'Error adding project', error: error.message });
+        console.error('Error adding Leads:', error);
+        res.status(500).json({ success: false, message: 'Error adding Leads', error: error.message });
     }
 });
 
-app.put('/api/projects/:id', async (req, res) => {
+app.put('/api/Leads/:id', async (req, res) => {
     const { id } = req.params;
     const { name, date, team, status } = req.body;
     try {
-        const updatedProject = await ProjectModel.findByIdAndUpdate(id, { name, date, team, status }, { new: true });
-        if (!updatedProject) {
-            return res.status(404).json({ success: false, message: 'Project not found' });
+        const updatedLeads = await LeadsModel.findByIdAndUpdate(id, { name, date, team, status }, { new: true });
+        if (!updatedLeads) {
+            return res.status(404).json({ success: false, message: 'Leads not found' });
         }
-        res.status(200).json({ success: true, message: 'Project updated', project: updatedProject });
+        res.status(200).json({ success: true, message: 'Leads updated', Leads: updatedLeads });
     } catch (error) {
-        console.error('Error updating project:', error);
-        res.status(500).json({ success: false, message: 'Error updating project', error: error.message });
+        console.error('Error updating Leads:', error);
+        res.status(500).json({ success: false, message: 'Error updating Leads', error: error.message });
     }
 });
 
-app.delete('/api/projects/:id', async (req, res) => {
+app.delete('/api/Leads/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const deletedProject = await ProjectModel.findByIdAndDelete(id);
-        if (!deletedProject) {
-            return res.status(404).json({ success: false, message: 'Project not found' });
+        const deletedLeads = await LeadsModel.findByIdAndDelete(id);
+        if (!deletedLeads) {
+            return res.status(404).json({ success: false, message: 'Leads not found' });
         }
-        res.status(200).json({ success: true, message: 'Project deleted' });
+        res.status(200).json({ success: true, message: 'Leads deleted' });
     } catch (error) {
-        console.error('Error deleting project:', error);
-        res.status(500).json({ success: false, message: 'Error deleting project', error: error.message });
+        console.error('Error deleting Leads:', error);
+        res.status(500).json({ success: false, message: 'Error deleting Leads', error: error.message });
     }
 });
 
@@ -315,6 +397,7 @@ app.delete('/api/quotes/:id', (req, res) => {
 });
 
 
+app.listen(5000, () => console.log('Server running on port 5000'));
 // Export for serverless functions
 module.exports = (req, res) => {
     app(req, res);
