@@ -68,6 +68,84 @@ const dealSchema = new mongoose.Schema({
 });
 const Deal = mongoose.model('Deal', dealSchema);
 
+const projectSchema = new mongoose.Schema({
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    userResponsible: { type: String, required: true },
+    dueDate: { type: String, required: true },
+    team: [String],
+    status: { type: String, enum: ['Open', 'In progress', 'Under review', 'Completed'], required: true },
+});
+
+const Project = mongoose.model('Project', projectSchema);
+// Get all projects
+app.get('/api/projects', async (req, res) => {
+    try {
+        const projects = await Project.find();
+        res.json(projects);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Get a project by ID
+app.get('/api/projects/:id', async (req, res) => {
+    try {
+        const project = await Project.findOne({ id: req.params.id });
+        if (!project) return res.status(404).json({ message: 'Project not found' });
+        res.json(project);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Create a new project
+app.post('/api/projects', async (req, res) => {
+    const { id, name, userResponsible, dueDate, team, status } = req.body;
+
+    const newProject = new Project({
+        id,
+        name,
+        userResponsible,
+        dueDate,
+        team,
+        status,
+    });
+
+    try {
+        const savedProject = await newProject.save();
+        res.status(201).json(savedProject);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+
+// Update a project
+app.put('/api/projects/:id', async (req, res) => {
+    try {
+        const updatedProject = await Project.findOneAndUpdate(
+            { id: req.params.id },
+            req.body,
+            { new: true, runValidators: true }
+        );
+        if (!updatedProject) return res.status(404).json({ message: 'Project not found' });
+        res.json(updatedProject);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+
+// Delete a project
+app.delete('/api/projects/:id', async (req, res) => {
+    try {
+        const deletedProject = await Project.findOneAndDelete({ id: req.params.id });
+        if (!deletedProject) return res.status(404).json({ message: 'Project not found' });
+        res.json({ message: 'Project deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // API Routes
 // get all api
 app.get('/api/deals', async (req, res) => {
