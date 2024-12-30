@@ -238,17 +238,19 @@ app.post('/api/store', async (req, res) => {
     }
 });
 
-// Task APIs
+// Task API Routes
+
+// GET all tasks
 app.get('/api/tasks', async (req, res) => {
     try {
         const tasks = await TaskModel.find();
         res.status(200).json({ success: true, tasks });
     } catch (error) {
-        console.error('Error fetching tasks:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch tasks', error: error.message });
     }
 });
 
+// POST a new task
 app.post('/api/tasks', async (req, res) => {
     const { taskName, taskDescription, taskStatus } = req.body;
     if (!taskName || !taskDescription || !taskStatus) {
@@ -257,10 +259,38 @@ app.post('/api/tasks', async (req, res) => {
     try {
         const task = new TaskModel({ taskName, taskDescription, taskStatus });
         await task.save();
-        res.status(201).json({ success: true, message: 'Task added' });
+        res.status(201).json({ success: true, message: 'Task added', task });
     } catch (error) {
-        console.error('Error adding task:', error);
         res.status(500).json({ success: false, message: 'Error adding task', error: error.message });
+    }
+});
+
+// PUT (update) a task's status
+app.put('/api/tasks/:id', async (req, res) => {
+    const { id } = req.params;
+    const { taskStatus } = req.body;
+    try {
+        const updatedTask = await TaskModel.findByIdAndUpdate(id, { taskStatus }, { new: true });
+        if (!updatedTask) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+        res.json(updatedTask);
+    } catch (err) {
+        res.status(500).json({ message: 'Error updating task status' });
+    }
+});
+
+// DELETE a task
+app.delete('/api/tasks/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const task = await TaskModel.findByIdAndDelete(id);
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+        res.json({ message: 'Task deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting task' });
     }
 });
 
@@ -480,3 +510,5 @@ app.listen(5000, () => console.log('Server running on port 5000'));
 module.exports = (req, res) => {
     app(req, res);
 };
+
+
