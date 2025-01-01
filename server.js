@@ -455,54 +455,6 @@ app.delete('/api/contacts/:id', async (req, res) => {
     }
 });
 
-// Quotes APIs
-let quotesData = [];
-
-app.get('/api/quotes', (req, res) => {
-    res.json({ success: true, quotes: quotesData });
-});
-
-app.get('/api/quotes/:id', (req, res) => {
-    const quote = quotesData.find(q => q.id === parseInt(req.params.id));
-    if (quote) {
-        res.json({ success: true, quote });
-    } else {
-        res.status(404).json({ success: false, message: 'Quote not found' });
-    }
-});
-
-app.post('/api/quotes', (req, res) => {
-    const { date, title, customer, status, value } = req.body;
-    const newQuote = {
-        id: quotesData.length + 1,
-        date,
-        title,
-        customer,
-        status,
-        value
-    };
-    quotesData.push(newQuote);
-    res.status(201).json({ success: true, quote: newQuote });
-});
-
-app.put('/api/quotes/:id', (req, res) => {
-    const quoteId = parseInt(req.params.id);
-    const { date, title, customer, status, value } = req.body;
-
-    let quote = quotesData.find(q => q.id === quoteId);
-    if (quote) {
-        quote = { ...quote, date, title, customer, status, value };
-        res.json({ success: true, quote });
-    } else {
-        res.status(404).json({ success: false, message: 'Quote not found' });
-    }
-});
-
-app.delete('/api/quotes/:id', (req, res) => {
-    const quoteId = parseInt(req.params.id);
-    quotesData = quotesData.filter(q => q.id !== quoteId);
-    res.status(200).json({ success: true, message: 'Quote deleted' });
-});
 
 
 app.listen(5000, () => console.log('Server running on port 5000'));
