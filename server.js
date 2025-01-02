@@ -11,7 +11,7 @@ app.use(express.json());
 
 // Connect to MongoDB Atlas
 mongoose.connect(
-    "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Doges",
+    "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Dogesh",
     { useNewUrlParser: true, useUnifiedTopology: true }
 )
     .then(() => console.log('Connected to MongoDB Atlas'))
@@ -455,6 +455,78 @@ app.delete('/api/contacts/:id', async (req, res) => {
     }
 });
 
+// Quote Model
+const Quote = mongoose.model("Quote", new mongoose.Schema({
+    date: { type: Date, required: true },
+    title: { type: String, required: true },
+    customer: { type: String, required: true },
+    status: { type: String, enum: ["Accepted", "Not Accepted"], required: true },
+    value: { type: Number, required: true },
+}));
+
+// Routes
+// Fetch all quotes
+app.get("/api/quotes", async (req, res) => {
+    try {
+        const quotes = await Quote.find();
+        res.json({ success: true, quotes });
+    } catch (error) {
+        console.error("Error fetching quotes:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch quotes" });
+    }
+});
+
+// Add a new quote
+app.post("/api/quotes", async (req, res) => {
+    try {
+        const { date, title, customer, status, value } = req.body;
+        if (!date || !title || !customer || !status || !value) {
+            return res.status(400).json({ success: false, message: "All fields are required" });
+        }
+        const newQuote = new Quote({ date, title, customer, status, value });
+        await newQuote.save();
+        res.json({ success: true, message: "Quote added successfully", quote: newQuote });
+    } catch (error) {
+        console.error("Error adding quote:", error);
+        res.status(500).json({ success: false, message: "Failed to add quote" });
+    }
+});
+
+// Edit an existing quote
+app.put("/api/quotes/:id", async (req, res) => {
+    try {
+        const { date, title, customer, status, value } = req.body;
+        const quote = await Quote.findById(req.params.id);
+        if (!quote) {
+            return res.status(404).json({ success: false, message: "Quote not found" });
+        }
+        quote.date = date || quote.date;
+        quote.title = title || quote.title;
+        quote.customer = customer || quote.customer;
+        quote.status = status || quote.status;
+        quote.value = value || quote.value;
+        await quote.save();
+        res.json({ success: true, message: "Quote updated successfully", quote });
+    } catch (error) {
+        console.error("Error updating quote:", error);
+        res.status(500).json({ success: false, message: "Failed to update quote" });
+    }
+});
+
+// Delete a quote
+app.delete("/api/quotes/:id", async (req, res) => {
+    try {
+        const quote = await Quote.findById(req.params.id);
+        if (!quote) {
+            return res.status(404).json({ success: false, message: "Quote not found" });
+        }
+        await quote.remove();
+        res.json({ success: true, message: "Quote deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting quote:", error);
+        res.status(500).json({ success: false, message: "Failed to delete quote" });
+    }
+});
 
 
 app.listen(5000, () => console.log('Server running on port 5000'));
