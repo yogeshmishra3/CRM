@@ -240,6 +240,15 @@ app.post('/api/store', async (req, res) => {
 
 // Task API Routes
 
+// Task Schema
+const TaskDataSchema = new mongoose.Schema({
+    taskName: { type: String, required: true },
+    taskDescription: { type: String, required: true },
+    taskStatus: { type: String, required: true },
+    clientName: { type: String, required: true }
+});
+
+
 // GET all tasks
 app.get('/api/tasks', async (req, res) => {
     try {
@@ -252,12 +261,12 @@ app.get('/api/tasks', async (req, res) => {
 
 // POST a new task
 app.post('/api/tasks', async (req, res) => {
-    const { taskName, taskDescription, taskStatus } = req.body;
-    if (!taskName || !taskDescription || !taskStatus) {
+    const { taskName, taskDescription, taskStatus, clientName } = req.body;
+    if (!taskName || !taskDescription || !taskStatus || !clientName) {
         return res.status(400).json({ success: false, message: 'All fields are required' });
     }
     try {
-        const task = new TaskModel({ taskName, taskDescription, taskStatus });
+        const task = new TaskModel({ taskName, taskDescription, taskStatus, clientName });
         await task.save();
         res.status(201).json({ success: true, message: 'Task added', task });
     } catch (error) {
@@ -265,18 +274,22 @@ app.post('/api/tasks', async (req, res) => {
     }
 });
 
-// PUT (update) a task's status
+// PUT (update) a task's status or client name
 app.put('/api/tasks/:id', async (req, res) => {
     const { id } = req.params;
-    const { taskStatus } = req.body;
+    const { taskStatus, clientName } = req.body;
     try {
-        const updatedTask = await TaskModel.findByIdAndUpdate(id, { taskStatus }, { new: true });
+        const updatedFields = {};
+        if (taskStatus) updatedFields.taskStatus = taskStatus;
+        if (clientName) updatedFields.clientName = clientName;
+
+        const updatedTask = await TaskModel.findByIdAndUpdate(id, updatedFields, { new: true });
         if (!updatedTask) {
             return res.status(404).json({ message: 'Task not found' });
         }
-        res.json(updatedTask);
+        res.json({ success: true, message: 'Task updated successfully', task: updatedTask });
     } catch (err) {
-        res.status(500).json({ message: 'Error updating task status' });
+        res.status(500).json({ success: false, message: 'Error updating task', error: err.message });
     }
 });
 
@@ -288,9 +301,9 @@ app.delete('/api/tasks/:id', async (req, res) => {
         if (!task) {
             return res.status(404).json({ message: 'Task not found' });
         }
-        res.json({ message: 'Task deleted successfully' });
+        res.json({ success: true, message: 'Task deleted successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Error deleting task' });
+        res.status(500).json({ success: false, message: 'Error deleting task', error: error.message });
     }
 });
 
