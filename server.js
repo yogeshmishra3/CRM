@@ -158,7 +158,7 @@ const revenueSchema = new mongoose.Schema({
 const Revenue = mongoose.model('Revenue', revenueSchema);
 
 // API to Fetch Revenue Data
-app.get('/api/datarevenue', async (req, res) => {
+app.get('/api/data', async (req, res) => {
     try {
         const data = await Revenue.find(); // Fetch all data from MongoDB
         res.send(data);
@@ -169,7 +169,7 @@ app.get('/api/datarevenue', async (req, res) => {
 });
 
 // API to Save Revenue Data
-app.post('/api/datarevenue', async (req, res) => {
+app.post('/api/data', async (req, res) => {
     try {
         const newData = await Revenue.insertMany(req.body); // Insert data into MongoDB
         res.send({ message: 'Data saved successfully!', data: newData });
