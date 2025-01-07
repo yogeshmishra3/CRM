@@ -10,13 +10,24 @@ app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB Atlas
-mongoose.connect(
-    "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Dogesh",
-    { useNewUrlParser: true, useUnifiedTopology: true }
-)
-    .then(() => console.log('Connected to MongoDB Atlas'))
-    .catch((err) => console.error('MongoDB connection error:', err));
+const MONGO_URI_MAIN = 'mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/revenueData?retryWrites=true&w=majority&appName=Dogesh';
+mongoose.connect(MONGO_URI_MAIN)
+    .then(() => console.log('Connected to MongoDB Atlas (Main Database)'))
+    .catch((err) => console.error('Error connecting to MongoDB Atlas (Main Database):', err));
 
+// Second Connection using mongoose.createConnection() (Secondary Database)
+const MONGO_URI_SECONDARY = "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Dogesh";
+const secondaryConnection = mongoose.createConnection(MONGO_URI_SECONDARY, { useNewUrlParser: true, useUnifiedTopology: true });
+
+// Use the `open` event to check when the secondary connection is established
+secondaryConnection.once('open', () => {
+    console.log('Connected to MongoDB Atlas (Secondary Database)');
+});
+
+// Handle error for the secondary connection
+secondaryConnection.on('error', (err) => {
+    console.error('MongoDB connection error (Secondary Database):', err);
+});
 // Define Schemas and Models
 const DataSchema = new mongoose.Schema({
     name: String,
