@@ -1,5 +1,4 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
@@ -8,14 +7,29 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+const mongoose = require('mongoose');
 
-// Connect to MongoDB Atlas
-mongoose.connect(
-    "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Dogesh",
-    { useNewUrlParser: true, useUnifiedTopology: true }
-)
-    .then(() => console.log('Connected to MongoDB Atlas'))
-    .catch((err) => console.error('MongoDB connection error:', err));
+// First Connection using mongoose.connect() (Main Database)
+const MONGO_URI_MAIN = 'mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/revenueData?retryWrites=true&w=majority&appName=Dogesh';
+mongoose.connect(MONGO_URI_MAIN)
+    .then(() => console.log('Connected to MongoDB Atlas (Main Database)'))
+    .catch((err) => console.error('Error connecting to MongoDB Atlas (Main Database):', err));
+
+// Second Connection using mongoose.createConnection() (Secondary Database)
+const MONGO_URI_SECONDARY = "mongodb+srv://YogeshMishra:yogeshmishraji@dogesh.4zht5.mongodb.net/?retryWrites=true&w=majority&appName=Dogesh";
+const secondaryConnection = mongoose.createConnection(MONGO_URI_SECONDARY, { useNewUrlParser: true, useUnifiedTopology: true });
+
+// Use the `open` event to check when the secondary connection is established
+secondaryConnection.once('open', () => {
+    console.log('Connected to MongoDB Atlas (Secondary Database)');
+});
+
+// Handle error for the secondary connection
+secondaryConnection.on('error', (err) => {
+    console.error('MongoDB connection error (Secondary Database):', err);
+});
+
+// You can now use `secondaryConnection` for queries related to the second database
 
 // Define Schemas and Models
 const DataSchema = new mongoose.Schema({
@@ -23,16 +37,9 @@ const DataSchema = new mongoose.Schema({
     email: String,
     message: String,
 });
-
 const DataModel = mongoose.model('Data', DataSchema);
 
-const TaskSchema = new mongoose.Schema({
-    taskName: String,
-    taskDescription: String,
-    taskStatus: String,
-    createdAt: { type: Date, default: Date.now },
-});
-const TaskModel = mongoose.model('Task', TaskSchema);
+
 
 const LeadsSchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -147,6 +154,116 @@ app.delete('/api/projects/:id', async (req, res) => {
     }
 });
 
+// Define the Task Schema
+const taskSchema = new mongoose.Schema({
+    status: { type: String, required: true },
+    percentage: { type: Number, required: true },
+});
+
+// Create the Task model
+const Task = mongoose.model('Task', taskSchema);
+
+// Routes
+// POST route to save task data
+app.post('/api/IDTasks', async (req, res) => {
+    try {
+        const tasks = req.body;
+        // Save each task to the database
+        const savedTasks = await Task.insertMany(tasks);
+        res.status(200).json(savedTasks);
+    } catch (err) {
+        console.error('Error saving tasks:', err);
+        res.status(500).json({ message: 'Error saving task data.' });
+    }
+});
+
+// GET route to fetch task data
+app.get('/api/IDTasks', async (req, res) => {
+    try {
+        const tasks = await Task.find();
+        res.status(200).json({ tasks });
+    } catch (err) {
+        console.error('Error fetching tasks:', err);
+        res.status(500).json({ message: 'Error fetching task data.' });
+    }
+});
+
+
+// Task Schema
+const TaskDataSchema = new mongoose.Schema({
+    taskName: { type: String, required: true },
+    taskDescription: { type: String, required: true },
+    taskStatus: { type: String, required: true },
+    clientName: { type: String, required: true }
+});
+
+// Task Model (using custom collection name)
+const TaskModel = mongoose.model('Task1', TaskDataSchema, 'myTasksFolder');
+
+// GET all tasks
+app.get('/api/taskss', async (req, res) => {
+    try {
+        const tasks = await TaskModel.find();
+        res.status(200).json({ success: true, taskss });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch tasks', error: error.message });
+    }
+});
+
+
+// POST a new task
+app.post('/api/taskss', async (req, res) => {
+    const { taskName, taskDescription, taskStatus, clientName } = req.body;
+    if (!taskName || !taskDescription || !taskStatus || !clientName) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    try {
+        const task = new TaskModel({ taskName, taskDescription, taskStatus, clientName });
+        await task.save();
+        res.status(201).json({ success: true, message: 'Task added', task });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error adding task', error: error.message });
+    }
+});
+
+// PUT (update) a task's status or client name
+app.put('/api/taskss/:id', async (req, res) => {
+    const { id } = req.params;
+    const { taskStatus, clientName } = req.body;
+    try {
+        const updatedFields = {};
+        if (taskStatus) updatedFields.taskStatus = taskStatus;
+        if (clientName) updatedFields.clientName = clientName;
+
+        const updatedTask = await TaskModel.findByIdAndUpdate(id, updatedFields, { new: true });
+
+        if (!updatedTask) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+
+        res.json({ success: true, message: 'Task updated successfully', task: updatedTask });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error updating task', error: err.message });
+    }
+});
+
+// DELETE a task
+app.delete('/api/taskss/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const task = await TaskModel.findByIdAndDelete(id);
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+        res.json({ success: true, message: 'Task deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error deleting task', error: error.message });
+    }
+});
+
+
+
+
 // API Routes
 // get all api
 app.get('/api/deals', async (req, res) => {
@@ -239,61 +356,7 @@ app.post('/api/store', async (req, res) => {
     }
 });
 
-// Task API Routes
 
-// GET all tasks
-app.get('/api/tasks', async (req, res) => {
-    try {
-        const tasks = await TaskModel.find();
-        res.status(200).json({ success: true, tasks });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Failed to fetch tasks', error: error.message });
-    }
-});
-
-// POST a new task
-app.post('/api/tasks', async (req, res) => {
-    const { taskName, taskDescription, taskStatus } = req.body;
-    if (!taskName || !taskDescription || !taskStatus) {
-        return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-    try {
-        const task = new TaskModel({ taskName, taskDescription, taskStatus });
-        await task.save();
-        res.status(201).json({ success: true, message: 'Task added', task });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error adding task', error: error.message });
-    }
-});
-
-// PUT (update) a task's status
-app.put('/api/tasks/:id', async (req, res) => {
-    const { id } = req.params;
-    const { taskStatus } = req.body;
-    try {
-        const updatedTask = await TaskModel.findByIdAndUpdate(id, { taskStatus }, { new: true });
-        if (!updatedTask) {
-            return res.status(404).json({ message: 'Task not found' });
-        }
-        res.json(updatedTask);
-    } catch (err) {
-        res.status(500).json({ message: 'Error updating task status' });
-    }
-});
-
-// DELETE a task
-app.delete('/api/tasks/:id', async (req, res) => {
-    try {
-        const id = req.params.id;
-        const task = await TaskModel.findByIdAndDelete(id);
-        if (!task) {
-            return res.status(404).json({ message: 'Task not found' });
-        }
-        res.json({ message: 'Task deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error deleting task' });
-    }
-});
 
 // Leads APIs
 app.get('/api/Leads', async (req, res) => {
@@ -456,6 +519,55 @@ app.delete('/api/contacts/:id', async (req, res) => {
     }
 });
 
+// Quotes APIs
+let quotesData = [];
+
+app.get('/api/quotes', (req, res) => {
+    res.json({ success: true, quotes: quotesData });
+});
+
+app.get('/api/quotes/:id', (req, res) => {
+    const quote = quotesData.find(q => q.id === parseInt(req.params.id));
+    if (quote) {
+        res.json({ success: true, quote });
+    } else {
+        res.status(404).json({ success: false, message: 'Quote not found' });
+    }
+});
+
+app.post('/api/quotes', (req, res) => {
+    const { date, title, customer, status, value } = req.body;
+    const newQuote = {
+        id: quotesData.length + 1,
+        date,
+        title,
+        customer,
+        status,
+        value
+    };
+    quotesData.push(newQuote);
+    res.status(201).json({ success: true, quote: newQuote });
+});
+
+app.put('/api/quotes/:id', (req, res) => {
+    const quoteId = parseInt(req.params.id);
+    const { date, title, customer, status, value } = req.body;
+
+    let quote = quotesData.find(q => q.id === quoteId);
+    if (quote) {
+        quote = { ...quote, date, title, customer, status, value };
+        res.json({ success: true, quote });
+    } else {
+        res.status(404).json({ success: false, message: 'Quote not found' });
+    }
+});
+
+app.delete('/api/quotes/:id', (req, res) => {
+    const quoteId = parseInt(req.params.id);
+    quotesData = quotesData.filter(q => q.id !== quoteId);
+    res.status(200).json({ success: true, message: 'Quote deleted' });
+});
+
 // Quote Model
 const Quote = mongoose.model("Quote", new mongoose.Schema({
     date: { type: Date, required: true },
@@ -530,8 +642,284 @@ app.delete("/api/quotes/:id", async (req, res) => {
 });
 
 
-app.listen(5000, () => console.log('Server running on port 5000'));
+app.listen(3000, () => console.log('Server running on port 3000'));
 // Export for serverless functions
 module.exports = (req, res) => {
     app(req, res);
 };
+
+
+const bodyParser = require('body-parser');
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+
+
+// Define a Schema for the Revenue Data
+const revenueSchema = new mongoose.Schema({
+    name: String,
+    sales: Number,
+    profit: Number,
+});
+
+// Create a Model for Revenue
+const Revenue = mongoose.model('Revenue', revenueSchema);
+
+// API to Fetch Revenue Data
+app.get('/api/data', async (req, res) => {
+    try {
+        const data = await Revenue.find(); // Fetch all data from MongoDB
+        res.send(data);
+    } catch (err) {
+        console.error('Error fetching data:', err);
+        res.status(500).send({ message: 'Error fetching data.' });
+    }
+});
+
+// API to Save Revenue Data
+app.post('/api/data', async (req, res) => {
+    try {
+        const newData = await Revenue.insertMany(req.body); // Insert data into MongoDB
+        res.send({ message: 'Data saved successfully!', data: newData });
+    } catch (err) {
+        console.error('Error saving data:', err);
+        res.status(500).send({ message: 'Error saving data.' });
+    }
+});
+
+// Define a Schema for Top Deals Data
+const topDealsSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    amount: { type: Number, required: true, min: 0 },
+});
+
+const TopDeal = mongoose.model('TopDeal', topDealsSchema);
+
+// API to Fetch Top Deals
+app.get('/api/top-deals', async (req, res) => {
+    try {
+        const deals = await TopDeal.find();
+        res.send(deals);
+    } catch (err) {
+        console.error('Error fetching top deals:', err);
+        res.status(500).send({ message: 'Error fetching top deals.' });
+    }
+});
+
+// API to Save Top Deals
+app.post('/api/top-deals', async (req, res) => {
+    try {
+        const newDeals = await TopDeal.insertMany(req.body);
+        res.send({ message: 'Top Deals saved successfully!', data: newDeals });
+    } catch (err) {
+        console.error('Error saving top deals:', err);
+        res.status(500).send({ message: 'Error saving top deals.' });
+    }
+});
+
+// Define Schema for Progress Data
+// Task Progress Model
+const progressSchema = new mongoose.Schema({
+    status: { type: String, required: true },
+    percentage: { type: Number, required: true, min: 0, max: 100 }
+});
+
+const Progress = mongoose.model('Progress', progressSchema);
+
+
+
+
+
+// Schema for Income and Expenses Data
+const incomeExpenseSchema = new mongoose.Schema({
+    date: { type: String, required: true },
+    income: { type: Number, required: true },
+    expenses: { type: Number, required: true },
+});
+
+const IncomeExpense = mongoose.model('IncomeExpense', incomeExpenseSchema);
+
+// API to Save Income and Expenses Data
+app.post('/api/income-expenses', async (req, res) => {
+    try {
+        const { date, income, expenses } = req.body;
+        const newIncomeExpense = new IncomeExpense({ date, income, expenses });
+        await newIncomeExpense.save();
+        res.send({ message: 'Income/Expenses saved successfully!', data: newIncomeExpense });
+    } catch (err) {
+        console.error('Error saving income/expenses data:', err);
+        res.status(500).send({ message: 'Error saving income/expenses.' });
+    }
+});
+
+// Schema for Expenses by Category
+const expenseSchema = new mongoose.Schema({
+    category: { type: String, required: true },
+    amount: { type: Number, required: true },
+});
+
+const Expense = mongoose.model('Expense', expenseSchema);
+
+
+
+
+
+// API to Fetch Income and Expenses Data
+app.get('/api/income-expenses', async (req, res) => {
+    try {
+        const data = await IncomeExpense.find();
+        res.send(data);
+    } catch (err) {
+        console.error('Error fetching income/expenses data:', err);
+        res.status(500).send({ message: 'Error fetching income/expenses.' });
+    }
+});
+
+// API to Save Income and Expenses Data
+app.post('/api/income-expenses', async (req, res) => {
+    try {
+        const { date, income, expenses } = req.body;
+        const newIncomeExpense = new IncomeExpense({ date, income, expenses });
+        await newIncomeExpense.save();
+        res.send({ message: 'Income/Expenses saved successfully!', data: newIncomeExpense });
+    } catch (err) {
+        console.error('Error saving income/expenses data:', err);
+        res.status(500).send({ message: 'Error saving income/expenses.' });
+    }
+});
+
+// API to Save Expense Categories
+app.post('/api/expenses', async (req, res) => {
+    try {
+        const { category, amount } = req.body;
+        const newExpense = new Expense({ category, amount });
+        await newExpense.save();
+        res.send({ message: 'Expense category saved successfully!', data: newExpense });
+    } catch (err) {
+        console.error('Error saving expense category:', err);
+        res.status(500).send({ message: 'Error saving expense category.' });
+    }
+});
+
+app.get('/api/expenses', async (req, res) => {
+    try {
+      const expenses = await Expense.find(); // Fetch all expense categories from MongoDB
+      res.send(expenses);
+    } catch (err) {
+      console.error('Error fetching expense categories:', err);
+      res.status(500).send({ message: 'Error fetching expense categories.' });
+    }
+  });
+
+  // Create Mongoose models (example structure for each section)
+const Receivable = mongoose.model('Receivable', new mongoose.Schema({
+    name: String,
+    value: Number,
+    color: String,
+}));
+
+const Payable = mongoose.model('Payable', new mongoose.Schema({
+    name: String,
+    value: Number,
+    color: String,
+}));
+
+const CashBalance = mongoose.model('CashBalance', new mongoose.Schema({
+    month: String,
+    balance: Number,
+}));
+
+// For Receivable Data
+app.post('/api/reports-data/receivable', async (req, res) => {
+    try {
+        const { overdue, due, total } = req.body;
+        const newReceivable = new Receivable({
+            name: 'Receivable',
+            overdue,
+            due,
+            total
+        });
+        await newReceivable.save();
+        res.status(200).json({ message: 'Receivable data saved successfully!' });
+    } catch (err) {
+        console.error('Error saving Receivable data:', err);
+        res.status(500).json({ message: 'Error saving Receivable data' });
+    }
+});
+
+// For Payable Data
+app.post('/api/reports-data/payable', async (req, res) => {
+    try {
+        const { overdue, due, total } = req.body;
+        const newPayable = new Payable({
+            name: 'Payable',
+            overdue,
+            due,
+            total
+        });
+        await newPayable.save();
+        res.status(200).json({ message: 'Payable data saved successfully!' });
+    } catch (err) {
+        console.error('Error saving Payable data:', err);
+        res.status(500).json({ message: 'Error saving Payable data' });
+    }
+});
+
+// For Cash Balance Data
+app.post('/api/reports-data/cashbalance', async (req, res) => {
+    try {
+        const data = req.body;
+        const savedData = await CashBalance.insertMany(data);
+        res.status(200).json(savedData);
+    } catch (err) {
+        console.error('Error saving cash balance data:', err);
+        res.status(500).json({ message: 'Error saving data' });
+    }
+});
+
+// GET route to fetch receivable data
+app.get('/api/reports-data/receivable', async (req, res) => {
+    try {
+        // Make sure data is wrapped in an array, even if only one entry exists
+        const data = await Receivable.find();
+        res.status(200).json(data.length ? data : [{ name: 'Receivable', overdue: 0, due: 0, total: 0, color: '#0088FE' }]);
+    } catch (err) {
+        console.error('Error fetching receivable data:', err);
+        res.status(500).json({ message: 'Error fetching data' });
+    }
+});
+
+// GET route to fetch payable data
+app.get('/api/reports-data/payable', async (req, res) => {
+    try {
+        // Make sure data is wrapped in an array, even if only one entry exists
+        const data = await Payable.find();
+        res.status(200).json(data.length ? data : [{ name: 'Payable', overdue: 0, due: 0, total: 0, color: '#FF8042' }]);
+    } catch (err) {
+        console.error('Error fetching payable data:', err);
+        res.status(500).json({ message: 'Error fetching data' });
+    }
+});
+
+
+// GET route to fetch cash balance data
+app.get('/api/reports-data/cashbalance', async (req, res) => {
+    try {
+        const data = await CashBalance.find();
+        res.status(200).json(data);
+    } catch (err) {
+        console.error('Error fetching cash balance data:', err);
+        res.status(500).json({ message: 'Error fetching data' });
+    }
+});
+
+  
+  
+
+// Start the Server
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+});
+
+
