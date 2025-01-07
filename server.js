@@ -238,36 +238,26 @@ app.post('/api/store', async (req, res) => {
     }
 });
 
-// Task Schema
-const TaskDataSchema = new mongoose.Schema({
-    taskName: { type: String, required: true },
-    taskDescription: { type: String, required: true },
-    taskStatus: { type: String, required: true },
-    clientName: { type: String, required: true }
-});
-
-// Task Model (using custom collection name)
-const TaskModel1 = mongoose.model('Task1', TaskDataSchema, 'myTasksFolder');
+// Task API Routes
 
 // GET all tasks
-app.get('/api/taskss', async (req, res) => {
+app.get('/api/tasks', async (req, res) => {
     try {
-        const tasks = await TaskModel1.find();
-        res.status(200).json({ success: true, taskss });
+        const tasks = await TaskModel.find();
+        res.status(200).json({ success: true, tasks });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to fetch tasks', error: error.message });
     }
 });
 
-
 // POST a new task
-app.post('/api/taskss', async (req, res) => {
-    const { taskName, taskDescription, taskStatus, clientName } = req.body;
-    if (!taskName || !taskDescription || !taskStatus || !clientName) {
+app.post('/api/tasks', async (req, res) => {
+    const { taskName, taskDescription, taskStatus } = req.body;
+    if (!taskName || !taskDescription || !taskStatus) {
         return res.status(400).json({ success: false, message: 'All fields are required' });
     }
     try {
-        const task = new TaskModel1({ taskName, taskDescription, taskStatus, clientName });
+        const task = new TaskModel({ taskName, taskDescription, taskStatus });
         await task.save();
         res.status(201).json({ success: true, message: 'Task added', task });
     } catch (error) {
@@ -275,40 +265,35 @@ app.post('/api/taskss', async (req, res) => {
     }
 });
 
-// PUT (update) a task's status or client name
-app.put('/api/taskss/:id', async (req, res) => {
+// PUT (update) a task's status
+app.put('/api/tasks/:id', async (req, res) => {
     const { id } = req.params;
-    const { taskStatus, clientName } = req.body;
+    const { taskStatus } = req.body;
     try {
-        const updatedFields = {};
-        if (taskStatus) updatedFields.taskStatus = taskStatus;
-        if (clientName) updatedFields.clientName = clientName;
-
-        const updatedTask = await TaskModel1.findByIdAndUpdate(id, updatedFields, { new: true });
-
+        const updatedTask = await TaskModel.findByIdAndUpdate(id, { taskStatus }, { new: true });
         if (!updatedTask) {
             return res.status(404).json({ message: 'Task not found' });
         }
-
-        res.json({ success: true, message: 'Task updated successfully', task: updatedTask });
+        res.json(updatedTask);
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Error updating task', error: err.message });
+        res.status(500).json({ message: 'Error updating task status' });
     }
 });
 
 // DELETE a task
-app.delete('/api/taskss/:id', async (req, res) => {
+app.delete('/api/tasks/:id', async (req, res) => {
     try {
         const id = req.params.id;
-        const task = await TaskModel1.findByIdAndDelete(id);
+        const task = await TaskModel.findByIdAndDelete(id);
         if (!task) {
             return res.status(404).json({ message: 'Task not found' });
         }
-        res.json({ success: true, message: 'Task deleted successfully' });
+        res.json({ message: 'Task deleted successfully' });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Error deleting task', error: error.message });
+        res.status(500).json({ message: 'Error deleting task' });
     }
 });
+
 // Leads APIs
 app.get('/api/Leads', async (req, res) => {
     try {
