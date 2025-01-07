@@ -147,6 +147,38 @@ app.delete('/api/projects/:id', async (req, res) => {
     }
 });
 
+// Define a Schema for the Revenue Data
+const revenueSchema = new mongoose.Schema({
+    name: String,
+    sales: Number,
+    profit: Number,
+});
+
+// Create a Model for Revenue
+const Revenue = mongoose.model('Revenue', revenueSchema);
+
+// API to Fetch Revenue Data
+app.get('/api/data', async (req, res) => {
+    try {
+        const data = await Revenue.find(); // Fetch all data from MongoDB
+        res.send(data);
+    } catch (err) {
+        console.error('Error fetching data:', err);
+        res.status(500).send({ message: 'Error fetching data.' });
+    }
+});
+
+// API to Save Revenue Data
+app.post('/api/data', async (req, res) => {
+    try {
+        const newData = await Revenue.insertMany(req.body); // Insert data into MongoDB
+        res.send({ message: 'Data saved successfully!', data: newData });
+    } catch (err) {
+        console.error('Error saving data:', err);
+        res.status(500).send({ message: 'Error saving data.' });
+    }
+});
+
 // API Routes
 // get all api
 app.get('/api/deals', async (req, res) => {
