@@ -179,6 +179,74 @@ app.post('/api/data', async (req, res) => {
     }
 });
 
+
+
+// Define the Task Schema
+const taskSchema = new mongoose.Schema({
+    status: { type: String, required: true },
+    percentage: { type: Number, required: true },
+});
+
+// Create the Task model
+const DTask = mongoose.model('DTask', taskSchema);
+
+// POST route to save task data
+app.post('/api/IDTasks', async (req, res) => {
+    try {
+        const tasks = req.body;
+        // Save each task to the database
+        const savedTasks = await DTask.insertMany(tasks);
+        res.status(200).json(savedTasks);
+    } catch (err) {
+        console.error('Error saving tasks:', err);
+        res.status(500).json({ message: 'Error saving task data.' });
+    }
+});
+
+// GET route to fetch task data
+app.get('/api/IDTasks', async (req, res) => {
+    try {
+        const tasks = await DTask.find();
+        res.status(200).json({ tasks });
+    } catch (err) {
+        console.error('Error fetching tasks:', err);
+        res.status(500).json({ message: 'Error fetching task data.' });
+    }
+});
+
+
+// Define a Schema for Top Deals Data
+const topDealsSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    amount: { type: Number, required: true, min: 0 },
+});
+
+const TopDeal = mongoose.model('TopDeal', topDealsSchema);
+
+// API to Fetch Top Deals
+app.get('/api/top-deals', async (req, res) => {
+    try {
+        const deals = await TopDeal.find();
+        res.send(deals);
+    } catch (err) {
+        console.error('Error fetching top deals:', err);
+        res.status(500).send({ message: 'Error fetching top deals.' });
+    }
+});
+
+// API to Save Top Deals
+app.post('/api/top-deals', async (req, res) => {
+    try {
+        const newDeals = await TopDeal.insertMany(req.body);
+        res.send({ message: 'Top Deals saved successfully!', data: newDeals });
+    } catch (err) {
+        console.error('Error saving top deals:', err);
+        res.status(500).send({ message: 'Error saving top deals.' });
+    }
+});
+
+
+
 // API Routes
 // get all api
 app.get('/api/deals', async (req, res) => {
