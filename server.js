@@ -338,6 +338,7 @@ const TaskSchema = new mongoose.Schema({
     taskName: String,
     taskDescription: String,
     taskStatus: String,
+    clientName: String, // Add clientName field
     createdAt: { type: Date, default: Date.now },
   });
   
@@ -346,14 +347,34 @@ const TaskSchema = new mongoose.Schema({
     taskName: String,
     taskDescription: String,
     taskStatus: String,
+    clientName: String, // Add clientName field
     archivedAt: { type: Date, default: Date.now },
   });
   
-  const TaskModel = mongoose.model("Task", TaskSchema); // Active tasks
+  const TaskModel = mongoose.model("NewTask", TaskSchema); // Active tasks
   const RecycleModel = mongoose.model("TaskRecycle", RecycleSchema); // Archived tasks
+
+  // Route to add a new task to the "Tasks" collection
+app.post("/api/Newtasks", async (req, res) => {
+    const { taskName, taskDescription, taskStatus, clientName } = req.body;
+  
+    // Ensure clientName is provided
+    if (!taskName || !taskDescription || !taskStatus || !clientName) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+  
+    try {
+      const task = new TaskModel({ taskName, taskDescription, taskStatus, clientName });
+      await task.save();
+      res.status(201).json({ success: true, message: "Task added", task });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error adding task", error: error.message });
+    }
+  });
+
   
   // Route to get all tasks from the "Tasks" collection
-  app.get("/api/tasks", async (req, res) => {
+app.get("/api/Newtasks", async (req, res) => {
     try {
       const tasks = await TaskModel.find();
       res.status(200).json({ success: true, tasks });
@@ -361,34 +382,21 @@ const TaskSchema = new mongoose.Schema({
       res.status(500).json({ success: false, message: "Failed to fetch tasks", error: error.message });
     }
   });
-  
-  // Route to get all archived tasks from the "TasksRecycle" collection
-  app.get("/api/recycle-bin", async (req, res) => {
+
+  // Route to get all tasks from the "TasksRecycle" collection
+app.get("/api/Newrecycle-bin", async (req, res) => {
     try {
-      const recycledTasks = await RecycleModel.find();
-      res.status(200).json({ success: true, recycledTasks });
+        const recycledTasks = await RecycleModel.find();
+        res.status(200).json({ success: true, recycledTasks });
     } catch (error) {
-      res.status(500).json({ success: false, message: "Failed to fetch recycled tasks", error: error.message });
+        res.status(500).json({ success: false, message: "Failed to fetch recycled tasks", error: error.message });
     }
-  });
-  
-  // Route to add a new task to the "Tasks" collection
-  app.post("/api/tasks", async (req, res) => {
-    const { taskName, taskDescription, taskStatus } = req.body;
-    if (!taskName || !taskDescription || !taskStatus) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-    try {
-      const task = new TaskModel({ taskName, taskDescription, taskStatus });
-      await task.save();
-      res.status(201).json({ success: true, message: "Task added", task });
-    } catch (error) {
-      res.status(500).json({ success: false, message: "Error adding task", error: error.message });
-    }
-  });
+});
+
+
   
   // Route to archive a task (move from "Tasks" to "TasksRecycle")
-  app.put("/api/tasks/archive/:id", async (req, res) => {
+app.put("/api/Newtasks/archive/:id", async (req, res) => {
     const { id } = req.params;
   
     try {
@@ -403,6 +411,7 @@ const TaskSchema = new mongoose.Schema({
         taskName: task.taskName,
         taskDescription: task.taskDescription,
         taskStatus: task.taskStatus,
+        clientName: task.clientName, // Ensure clientName is copied
       });
       await recycledTask.save();
   
@@ -414,9 +423,10 @@ const TaskSchema = new mongoose.Schema({
       res.status(500).json({ success: false, message: "Error archiving task", error: error.message });
     }
   });
+
   
   // Route to restore a task (move from "TasksRecycle" back to "Tasks")
-  app.put("/api/recycle-bin/restore/:id", async (req, res) => {
+app.put("/api/Newrecycle-bin/restore/:id", async (req, res) => {
     const { id } = req.params;
   
     try {
@@ -431,6 +441,7 @@ const TaskSchema = new mongoose.Schema({
         taskName: recycledTask.taskName,
         taskDescription: recycledTask.taskDescription,
         taskStatus: recycledTask.taskStatus,
+        clientName: recycledTask.clientName, // Copy clientName
       });
       await restoredTask.save();
   
@@ -442,9 +453,10 @@ const TaskSchema = new mongoose.Schema({
       res.status(500).json({ success: false, message: "Error restoring task", error: error.message });
     }
   });
+
   
   // Route to permanently delete a task from the "TasksRecycle" collection
-  app.delete("/api/recycle-bin/:id", async (req, res) => {
+app.delete("/api/Newrecycle-bin/:id", async (req, res) => {
     const { id } = req.params;
   
     try {
