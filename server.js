@@ -23,7 +23,7 @@ const DataSchema = new mongoose.Schema({
     email: String,
     message: String,
 });
-const Data = mongoose.model('Data', DataSchema);
+
 const DataModel = mongoose.model('Data', DataSchema);
 
 const TaskSchema = new mongoose.Schema({
