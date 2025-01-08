@@ -294,6 +294,27 @@ app.delete('/api/tasks/:id', async (req, res) => {
     }
 });
 
+// PUT (update) a task's status via drag-and-drop
+app.put('/api/tasks/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { taskStatus } = req.body;
+
+    if (!taskStatus) {
+        return res.status(400).json({ message: 'Task status is required' });
+    }
+
+    try {
+        const updatedTask = await TaskModel.findByIdAndUpdate(id, { taskStatus }, { new: true });
+        if (!updatedTask) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+        res.json({ success: true, task: updatedTask });
+    } catch (err) {
+        res.status(500).json({ message: 'Error updating task status', error: err.message });
+    }
+});
+
+
 // Leads APIs
 app.get('/api/Leads', async (req, res) => {
     try {
