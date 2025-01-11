@@ -45,98 +45,101 @@ const OrganizationSchema = new mongoose.Schema({
 });
 const Organization = mongoose.model('Organization', OrganizationSchema);
 
-const ContactSchema = new mongoose.Schema({
-    name: String,
-    email: String,
-    phone: String,
-    address: String,
-});
-const Contact = mongoose.model('Contact', ContactSchema);
-
-const dealSchema = new mongoose.Schema({
-    name: String,
-    amount: Number,
-    owner: String,
-    stage: String,
-});
-const Deal = mongoose.model('Deal', dealSchema);
-
+// Define project schema
 const projectSchema = new mongoose.Schema({
-    id: { type: String, required: true },
-    name: { type: String, required: true },
-    userResponsible: { type: String, required: true },
-    dueDate: { type: String, required: true },
-    team: [String],
-    status: { type: String, enum: ['Open', 'In progress', 'Under review', 'Completed'], required: true },
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  userResponsible: { type: String, required: true },
+  dueDate: { type: String, required: true },
+  team: [String],
+  status: { type: String, enum: ['Open', 'In progress', 'Under review', 'Completed'], required: true },
 });
 
+// Create Project model
 const Project = mongoose.model('Project', projectSchema);
+
 // Get all projects
 app.get('/api/projects', async (req, res) => {
-    try {
-        const projects = await Project.find();
-        res.json(projects);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+  try {
+      const projects = await Project.find();
+      res.json(projects);
+  } catch (err) {
+      res.status(500).json({ message: err.message });
+  }
 });
 
 // Get a project by ID
 app.get('/api/projects/:id', async (req, res) => {
-    try {
-        const project = await Project.findOne({ id: req.params.id });
-        if (!project) return res.status(404).json({ message: 'Project not found' });
-        res.json(project);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+  try {
+      const project = await Project.findOne({ id: req.params.id });
+      if (!project) return res.status(404).json({ message: 'Project not found' });
+      res.json(project);
+  } catch (err) {
+      res.status(500).json({ message: err.message });
+  }
 });
 
 // Create a new project
 app.post('/api/projects', async (req, res) => {
-    const { id, name, userResponsible, dueDate, team, status } = req.body;
+  const { id, name, userResponsible, dueDate, team, status } = req.body;
 
-    const newProject = new Project({
-        id,
-        name,
-        userResponsible,
-        dueDate,
-        team,
-        status,
-    });
+  const newProject = new Project({
+      id,
+      name,
+      userResponsible,
+      dueDate,
+      team,
+      status,
+  });
 
-    try {
-        const savedProject = await newProject.save();
-        res.status(201).json(savedProject);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
+  try {
+      const savedProject = await newProject.save();
+      res.status(201).json(savedProject);
+  } catch (err) {
+      res.status(400).json({ message: err.message });
+  }
 });
 
 // Update a project
 app.put('/api/projects/:id', async (req, res) => {
-    try {
-        const updatedProject = await Project.findOneAndUpdate(
-            { id: req.params.id },
-            req.body,
-            { new: true, runValidators: true }
-        );
-        if (!updatedProject) return res.status(404).json({ message: 'Project not found' });
-        res.json(updatedProject);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
+  const { name, userResponsible, dueDate, team, status } = req.body;
+  
+  try {
+      const updatedProject = await Project.findOneAndUpdate(
+          { id: req.params.id }, // Find the project by ID
+          {
+              name,
+              userResponsible,
+              dueDate,
+              team, // Array of team members
+              status
+          },
+          { new: true, runValidators: true } // Ensure that the returned object is the updated one and validate fields
+      );
+      
+      if (!updatedProject) {
+          return res.status(404).json({ message: 'Project not found' });
+      }
+      
+      res.json(updatedProject);
+  } catch (err) {
+      res.status(400).json({ message: err.message });
+  }
 });
 
 // Delete a project
 app.delete('/api/projects/:id', async (req, res) => {
-    try {
-        const deletedProject = await Project.findOneAndDelete({ id: req.params.id });
-        if (!deletedProject) return res.status(404).json({ message: 'Project not found' });
-        res.json({ message: 'Project deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+  try {
+      const deletedProject = await Project.findOneAndDelete({ id: req.params.id });
+      
+      if (!deletedProject) {
+          return res.status(404).json({ message: 'Project not found' });
+      }
+      
+      res.json({ message: 'Project deleted successfully' });
+  } catch (err) {
+      res.status(500).json({ message: err.message });
+  }
 });
 
 // Define a Schema for the Revenue Data
@@ -237,83 +240,167 @@ app.post('/api/top-deals', async (req, res) => {
     }
 });
 
+// Schemas
+const dealSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  amount: { type: Number, required: true },
+  owner: { type: String, required: true },
+  stage: { type: String, required: true },
+});
 
+const recycledDealSchema = new mongoose.Schema({
+  name: String,
+  amount: Number,
+  owner: String,
+  stage: String,
+});
+
+// Models
+const Deal = mongoose.model("Deal", dealSchema);
+const RecycledDeal = mongoose.model("RecycledDeal", recycledDealSchema);
 
 // API Routes
-// get all api
-app.get('/api/deals', async (req, res) => {
-    try {
-        const deals = await Deal.find();
-        res.json(deals);
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching deals' });
-    }
+
+// Get all deals
+app.get("/api/deals", async (req, res) => {
+  try {
+    const deals = await Deal.find();
+    res.json(deals);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching deals" });
+  }
 });
 
-// Routes
-
-// GET all deals
-app.get('/api/deals', async (req, res) => {
-    try {
-        const deals = await Deal.find();
-        res.json(deals);
-    } catch (err) {
-        res.status(500).json({ message: 'Error fetching deals' });
-    }
+// Create a new deal
+app.post("/api/deals", async (req, res) => {
+  const { name, amount, owner, stage } = req.body;
+  try {
+    const newDeal = new Deal({ name, amount, owner, stage });
+    await newDeal.save();
+    res.status(201).json(newDeal);
+  } catch (error) {
+    res.status(400).json({ message: "Error creating deal" });
+  }
 });
 
-// POST a new deal
-app.post('/api/deals', async (req, res) => {
-    const { name, amount, owner, stage } = req.body;
-    try {
-        const newDeal = new Deal({ name, amount, owner, stage });
-        await newDeal.save();
-        res.status(201).json(newDeal);
-    } catch (err) {
-        res.status(400).json({ message: 'Error creating deal' });
+// Edit a deal (Update name, owner, and amount)
+app.put("/api/deals/edit/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name, owner, amount } = req.body;
+
+  try {
+    const updatedDeal = await Deal.findByIdAndUpdate(
+      id,
+      { name, owner, amount },
+      { new: true } // Return the updated deal
+    );
+
+    if (!updatedDeal) {
+      return res.status(404).json({ message: "Deal not found" });
     }
+
+    res.json(updatedDeal);
+  } catch (error) {
+    console.error("Error editing deal:", error);
+    res.status(500).json({ message: "Error editing deal" });
+  }
 });
 
-// PUT (update) a deal's stage
-app.put('/api/deals/:id', async (req, res) => {
+// Update a deal's stage (used for drag-and-drop)
+app.put("/api/deals/:id", async (req, res) => {
+  const { id } = req.params;
+  const { stage, amount } = req.body;
+
+  try {
+    const updatedDeal = await Deal.findByIdAndUpdate(
+      id,
+      { stage, amount },
+      { new: true }
+    );
+
+    if (!updatedDeal) {
+      return res.status(404).json({ message: "Deal not found" });
+    }
+
+    res.json(updatedDeal);
+  } catch (error) {
+    console.error("Error updating deal:", error);
+    res.status(500).json({ message: "Error updating deal" });
+  }
+});
+
+// Delete a deal
+app.delete("/api/deals/:id", async (req, res) => {
+  try {
     const { id } = req.params;
-    const { stage } = req.body;
-    try {
-        const updatedDeal = await Deal.findByIdAndUpdate(id, { stage }, { new: true });
-        if (!updatedDeal) {
-            return res.status(404).json({ message: 'Deal not found' });
-        }
-        res.json(updatedDeal);
-    } catch (err) {
-        res.status(500).json({ message: 'Error updating deal' });
+    const deal = await Deal.findByIdAndDelete(id);
+    if (!deal) {
+      return res.status(404).json({ message: "Deal not found" });
     }
+    res.json({ message: "Deal deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting deal" });
+  }
 });
 
+// Archive a deal
+app.post("/api/deals/archive/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deal = await Deal.findByIdAndDelete(id);
+    if (!deal) return res.status(404).json({ message: "Deal not found" });
 
+    const recycledDeal = new RecycledDeal(deal.toObject());
+    await recycledDeal.save();
+    res.json(recycledDeal);
+  } catch (error) {
+    res.status(500).json({ message: "Error archiving deal" });
+  }
+});
 
-app.post('/api/deals', async (req, res) => {
-    const { name, amount, owner, stage } = req.body;
-    try {
-        const deal = new Deal({ name, amount, owner, stage });
-        await deal.save();
-        res.status(201).json(newDeal);
-    } catch (error) {
-        res.status(400).json({ message: 'Error creating deal' });
-    }
+// Get all recycled deals
+app.get("/api/recycledDeals", async (req, res) => {
+  try {
+    const recycledDeals = await RecycledDeal.find();
+    res.json(recycledDeals);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching recycled deals" });
+  }
 });
-// delete a deal
-app.delete('/api/deals/:id', async (req, res) => {
-    try {
-        const id = req.params.id;
-        const deal = await Deal.findByIdAndDelete(id);
-        if (!deal) {
-            return res.status(404).json({ message: 'Deal not found' });
-        }
-        res.json({ message: 'Deal deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error deleting deal' });
-    }
+
+// Restore a recycled deal
+app.post("/api/recycledDeals/restore/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const recycledDeal = await RecycledDeal.findByIdAndDelete(id);
+    if (!recycledDeal)
+      return res.status(404).json({ message: "Recycled deal not found" });
+
+    const restoredDeal = new Deal(recycledDeal.toObject());
+    await restoredDeal.save();
+    res.json(restoredDeal);
+  } catch (error) {
+    res.status(500).json({ message: "Error restoring deal" });
+  }
 });
+
+// Delete a recycled deal
+app.delete("/api/recycledDeals/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const recycledDeal = await RecycledDeal.findByIdAndDelete(id);
+    if (!recycledDeal) {
+      return res.status(404).json({ message: "Recycled deal not found" });
+    }
+    res.json({ message: "Recycled deal deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting recycled deal" });
+  }
+});
+
+  
+  
+
 
 // Data APIs
 app.post('/api/store', async (req, res) => {
@@ -333,164 +420,192 @@ app.post('/api/store', async (req, res) => {
 
 // Task API Routes
 
-// Define the Task schema for the "Tasks" collection
+// Task Schema
 const TaskSchema = new mongoose.Schema({
-    taskName: String,
-    taskDescription: String,
-    taskStatus: String,
-    clientName: String, // Add clientName field
-    createdAt: { type: Date, default: Date.now },
-  });
-  
-  // Define the Task schema for the "TasksRecycle" collection
-  const RecycleSchema = new mongoose.Schema({
-    taskName: String,
-    taskDescription: String,
-    taskStatus: String,
-    clientName: String, // Add clientName field
-    archivedAt: { type: Date, default: Date.now },
-  });
-  
-  const TaskModel = mongoose.model("NewTask", TaskSchema); // Active tasks
-  const RecycleModel = mongoose.model("TaskRecycle", RecycleSchema); // Archived tasks
+  taskName: String,
+  taskDescription: String,
+  taskStatus: String,
+  clientName: String,
+  startDate: { type: Date, required: true }, // Start date
+  dueDate: { type: Date, required: true }, // Due date
+  createdAt: { type: Date, default: Date.now },
+});
 
-  // Route to add a new task to the "Tasks" collection
-app.post("/api/Newtasks", async (req, res) => {
-    const { taskName, taskDescription, taskStatus, clientName } = req.body;
-  
-    // Ensure clientName is provided
-    if (!taskName || !taskDescription || !taskStatus || !clientName) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-  
-    try {
-      const task = new TaskModel({ taskName, taskDescription, taskStatus, clientName });
-      await task.save();
-      res.status(201).json({ success: true, message: "Task added", task });
-    } catch (error) {
-      res.status(500).json({ success: false, message: "Error adding task", error: error.message });
-    }
-  });
+const RecycleSchema = new mongoose.Schema({
+  taskName: String,
+  taskDescription: String,
+  taskStatus: String,
+  clientName: String,
+  startDate: { type: Date, required: true }, // Start date
+  dueDate: { type: Date, required: true }, // Due date
+  archivedAt: { type: Date, default: Date.now },
+});
 
-  
-  // Route to get all tasks from the "Tasks" collection
+// Models
+const TaskModel = mongoose.model("Task", TaskSchema);
+const RecycleModel = mongoose.model("RecycleTask", RecycleSchema);
+
+// API Routes
+
+// Fetch all tasks
 app.get("/api/Newtasks", async (req, res) => {
-    try {
-      const tasks = await TaskModel.find();
-      res.status(200).json({ success: true, tasks });
-    } catch (error) {
-      res.status(500).json({ success: false, message: "Failed to fetch tasks", error: error.message });
-    }
-  });
-
-  // Route to get all tasks from the "TasksRecycle" collection
-app.get("/api/Newrecycle-bin", async (req, res) => {
-    try {
-        const recycledTasks = await RecycleModel.find();
-        res.status(200).json({ success: true, recycledTasks });
-    } catch (error) {
-        res.status(500).json({ success: false, message: "Failed to fetch recycled tasks", error: error.message });
-    }
+  try {
+    const tasks = await TaskModel.find();
+    res.status(200).json({ success: true, tasks });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error fetching tasks", error });
+  }
 });
 
+// Add a new task
+app.post("/api/Newtasks", async (req, res) => {
+  const { taskName, taskDescription, taskStatus, clientName, startDate, dueDate } = req.body;
 
-  
-  // Route to archive a task (move from "Tasks" to "TasksRecycle")
+  if (!taskName || !taskDescription || !taskStatus || !clientName || !startDate || !dueDate) {
+    return res.status(400).json({ success: false, message: "All fields are required" });
+  }
+
+  try {
+    const task = new TaskModel({ taskName, taskDescription, taskStatus, clientName, startDate, dueDate });
+    await task.save();
+    res.status(201).json({ success: true, message: "Task added", task });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error adding task", error: error.message });
+  }
+});
+
+// Archive a task (move to recycle bin)
 app.put("/api/Newtasks/archive/:id", async (req, res) => {
-    const { id } = req.params;
-  
-    try {
-      // Find the task in the "Tasks" collection
-      const task = await TaskModel.findById(id);
-      if (!task) {
-        return res.status(404).json({ success: false, message: "Task not found" });
-      }
-  
-      // Move the task to the "TasksRecycle" collection
-      const recycledTask = new RecycleModel({
-        taskName: task.taskName,
-        taskDescription: task.taskDescription,
-        taskStatus: task.taskStatus,
-        clientName: task.clientName, // Ensure clientName is copied
-      });
-      await recycledTask.save();
-  
-      // Delete the task from the "Tasks" collection
-      await TaskModel.findByIdAndDelete(id);
-  
-      res.status(200).json({ success: true, message: "Task archived", recycledTask });
-    } catch (error) {
-      res.status(500).json({ success: false, message: "Error archiving task", error: error.message });
-    }
-  });
+  const { id } = req.params;
 
-  
-  // Route to restore a task (move from "TasksRecycle" back to "Tasks")
-app.put("/api/Newrecycle-bin/restore/:id", async (req, res) => {
-    const { id } = req.params;
-  
-    try {
-      // Find the task in the "TasksRecycle" collection
-      const recycledTask = await RecycleModel.findById(id);
-      if (!recycledTask) {
-        return res.status(404).json({ success: false, message: "Task not found in recycle bin" });
-      }
-  
-      // Move the task back to the "Tasks" collection
-      const restoredTask = new TaskModel({
-        taskName: recycledTask.taskName,
-        taskDescription: recycledTask.taskDescription,
-        taskStatus: recycledTask.taskStatus,
-        clientName: recycledTask.clientName, // Copy clientName
-      });
-      await restoredTask.save();
-  
-      // Delete the task from the "TasksRecycle" collection
-      await RecycleModel.findByIdAndDelete(id);
-  
-      res.status(200).json({ success: true, message: "Task restored", restoredTask });
-    } catch (error) {
-      res.status(500).json({ success: false, message: "Error restoring task", error: error.message });
-    }
-  });
-
-  
-  // Route to permanently delete a task from the "TasksRecycle" collection
-app.delete("/api/Newrecycle-bin/:id", async (req, res) => {
-    const { id } = req.params;
-  
-    try {
-      const task = await RecycleModel.findByIdAndDelete(id);
-      if (!task) {
-        return res.status(404).json({ success: false, message: "Task not found in recycle bin" });
-      }
-      res.status(200).json({ success: true, message: "Task permanently deleted" });
-    } catch (error) {
-      res.status(500).json({ success: false, message: "Error deleting task", error: error.message });
-    }
-  });
-  
-
-// PUT (update) a task's status via drag-and-drop
-app.put('/api/tasks/:id/status', async (req, res) => {
-    const { id } = req.params;
-    const { taskStatus } = req.body;
-
-    if (!taskStatus) {
-        return res.status(400).json({ message: 'Task status is required' });
+  try {
+    const task = await TaskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: "Task not found" });
     }
 
-    try {
-        const updatedTask = await TaskModel.findByIdAndUpdate(id, { taskStatus }, { new: true });
-        if (!updatedTask) {
-            return res.status(404).json({ message: 'Task not found' });
-        }
-        res.json({ success: true, task: updatedTask });
-    } catch (err) {
-        res.status(500).json({ message: 'Error updating task status', error: err.message });
-    }
+    const recycledTask = new RecycleModel({
+      taskName: task.taskName,
+      taskDescription: task.taskDescription,
+      taskStatus: task.taskStatus,
+      clientName: task.clientName,
+      startDate: task.startDate,
+      dueDate: task.dueDate,
+    });
+
+    await recycledTask.save();
+    await TaskModel.findByIdAndDelete(id);
+
+    res.status(200).json({ success: true, message: "Task archived", recycledTask });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error archiving task", error: error.message });
+  }
 });
 
+// Fetch tasks in recycle bin
+app.get("/api/Newrecycle-bin", async (req, res) => {
+  try {
+    const recycledTasks = await RecycleModel.find();
+    res.status(200).json({ success: true, recycledTasks });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error fetching recycled tasks", error });
+  }
+});
+
+// Restore a task from recycle bin
+app.put("/api/Newrecycle-bin/restore/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const recycledTask = await RecycleModel.findById(id);
+    if (!recycledTask) {
+      return res.status(404).json({ success: false, message: "Recycled task not found" });
+    }
+
+    const restoredTask = new TaskModel({
+      taskName: recycledTask.taskName,
+      taskDescription: recycledTask.taskDescription,
+      taskStatus: recycledTask.taskStatus,
+      clientName: recycledTask.clientName,
+      startDate: recycledTask.startDate,
+      dueDate: recycledTask.dueDate,
+    });
+
+    await restoredTask.save();
+    await RecycleModel.findByIdAndDelete(id);
+
+    res.status(200).json({ success: true, message: "Task restored", restoredTask });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error restoring task", error: error.message });
+  }
+});
+
+// Permanently delete a task from recycle bin
+app.delete("/api/Newrecycle-bin/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const task = await RecycleModel.findByIdAndDelete(id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: "Task not found in recycle bin" });
+    }
+
+    res.status(200).json({ success: true, message: "Task deleted permanently" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error deleting task", error: error.message });
+  }
+});
+
+// Update task status
+app.put("/api/tasks/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { taskStatus } = req.body;
+
+  try {
+    const updatedTask = await TaskModel.findByIdAndUpdate(
+      id,
+      { taskStatus },
+      { new: true }
+    );
+    if (!updatedTask) {
+      return res.status(404).json({ success: false, message: "Task not found" });
+    }
+
+    res.status(200).json({ success: true, message: "Task status updated", updatedTask });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error updating task status", error });
+  }
+});
+
+// Edit a task
+app.put("/api/Newtasks/edit/:id", async (req, res) => {
+  console.log("Editing task with ID:", req.params.id); // Add this line to check if the route is hit
+  const { id } = req.params;
+  const { taskName, taskDescription, taskStatus, clientName, startDate, dueDate } = req.body;
+
+  if (!taskName || !taskDescription || !taskStatus || !clientName || !startDate || !dueDate) {
+    return res.status(400).json({ success: false, message: "All fields are required" });
+  }
+
+  try {
+    const updatedTask = await TaskModel.findByIdAndUpdate(
+      id,
+      { taskName, taskDescription, taskStatus, clientName, startDate, dueDate },
+      { new: true }
+    );
+
+    if (!updatedTask) {
+      return res.status(404).json({ success: false, message: "Task not found" });
+    }
+
+    res.status(200).json({ success: true, message: "Task updated", updatedTask });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error updating task", error: error.message });
+  }
+});
+
+
+  
 
 // Leads APIs
 app.get('/api/Leads', async (req, res) => {
@@ -601,6 +716,15 @@ app.delete('/api/organizations/:id', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error deleting organization', error: error.message });
     }
 });
+
+
+const ContactSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  phone: String,
+  address: String,
+});
+const Contact = mongoose.model('Contact', ContactSchema);
 
 // Contact APIs
 app.get('/api/contacts', async (req, res) => {
