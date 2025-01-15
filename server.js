@@ -374,6 +374,7 @@ app.put("/api/deals/edit/:id", async (req, res) => {
     }
 });
 
+
 // Update a deal's stage (used for drag-and-drop)
 app.put("/api/deals/:id", async (req, res) => {
     const { id } = req.params;
@@ -844,6 +845,170 @@ app.delete('/api/contacts/:id', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
     }
 });
+
+
+const NewLeadSchema = new mongoose.Schema({
+    leadName: String,  // Add this field for the lead name
+    name: String,
+    email: String,
+    phone: String,
+    address: String,
+    dealStatus: String, // Add this field
+    message: String,
+});
+
+const NewLead = mongoose.model("NewLead", NewLeadSchema);
+
+
+app.get("/api/NewLeads", async (req, res) => {
+    try {
+        const leads = await NewLead.find();
+        res.status(200).json({ success: true, contacts: leads });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error fetching leads", error: err.message });
+    }
+});
+
+app.post("/api/NewLeads", async (req, res) => {
+    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
+
+    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
+        return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    try {
+        const newLead = new NewLead({ leadName, name, email, phone, address, dealStatus, message });
+        await newLead.save();
+        res.status(201).json({ success: true, message: "New lead created successfully" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error creating new lead", error: err.message });
+    }
+});
+
+
+
+// PUT Route to Update Deal Status
+app.put("/api/NewLeads/:id", async (req, res) => {
+    const { id } = req.params;
+    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
+
+    try {
+        const updatedLead = await NewLead.findByIdAndUpdate(
+            id,
+            { leadName, name, email, phone, address, dealStatus, message },
+            { new: true } // Return the updated document
+        );
+
+        if (!updatedLead) {
+            return res.status(404).json({ success: false, message: "Lead not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Lead updated successfully",
+            lead: updatedLead,
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: "Error updating lead",
+            error: err.message,
+        });
+    }
+});
+
+
+app.put("/api/NewLeads/edit/:id", async (req, res) => {
+    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
+    const { id } = req.params;
+    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
+
+    // Check for missing fields
+    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
+        return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    try {
+        // Update the lead in the database
+        const updatedLead = await NewLead.findByIdAndUpdate(
+            id,
+            { leadName, name, email, phone, address, dealStatus, message },
+            { new: true } // Return the updated lead document
+        );
+
+        // Handle case where the lead is not found
+        if (!updatedLead) {
+            return res.status(404).json({ success: false, message: "Lead not found" });
+        }
+
+        // Respond with success and the updated lead
+        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
+    } catch (error) {
+        // Handle server errors
+        res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
+    }
+});
+
+
+// Edit a lead
+app.put("/api/NewLeads/edit/:id", async (req, res) => {
+    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
+    const { id } = req.params;
+    const { name, email, phone, address, dealStatus, message } = req.body;
+
+    // Check for missing fields
+    if (!name || !email || !phone || !address || !dealStatus || !message) {
+        return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    try {
+        // Update the lead in the database
+        const updatedLead = await NewLead.findByIdAndUpdate(
+            id,
+            { name, email, phone, address, dealStatus, message },
+            { new: true } // Return the updated lead document
+        );
+
+        // Handle case where the lead is not found
+        if (!updatedLead) {
+            return res.status(404).json({ success: false, message: "Lead not found" });
+        }
+
+        // Respond with success and the updated lead
+        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
+    } catch (error) {
+        // Handle server errors
+        res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
+    }
+});
+
+
+
+app.delete("/api/NewLeads/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const deletedLead = await NewLead.findByIdAndDelete(id);
+
+        if (!deletedLead) {
+            return res.status(404).json({ success: false, message: "Lead not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Lead deleted successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: "Error deleting lead",
+            error: err.message,
+        });
+    }
+});
+
+
+
 
 // Quote Model
 const Quote = mongoose.model("Quote", new mongoose.Schema({
