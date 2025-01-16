@@ -142,74 +142,6 @@ app.delete('/api/projects/:id', async (req, res) => {
     }
 });
 
-
-// Define the schema for project details
-const projectDetailsSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  name: { type: String, required: true },
-  dueDate: { type: String, required: true },
-  team: { type: [String] },
-  status: { type: String, required: true, enum: ['Open', 'In Progress', 'To Do', 'Completed'] },
-});
-
-// Create the model
-const ProjectDetails = mongoose.model('ProjectDetails', projectDetailsSchema);
-
-// POST route to handle project details creation
-// POST route to handle project details creation or update
-app.post('/api/projectsDetails', async (req, res) => {
-  const { id, name, dueDate, team, status } = req.body;
-
-  // Validate input
-  if (!id || !name || !dueDate || !status) {
-    return res.status(400).json({ message: 'Missing required fields' });
-  }
-
-  try {
-    // Check if project already exists
-    let existingProject = await ProjectDetails.findOne({ id });
-
-    if (existingProject) {
-      // If project exists, update its details
-      existingProject.dueDate = dueDate;
-      existingProject.team = team;
-      existingProject.status = status;
-
-      const updatedProject = await existingProject.save();
-      return res.status(200).json(updatedProject); // Return the updated project
-    } else {
-      // If project doesn't exist, create a new project
-      const newProject = new ProjectDetails({
-        id,
-        name,
-        dueDate,
-        team,
-        status,
-      });
-
-      const savedProject = await newProject.save();
-      return res.status(201).json(savedProject); // Return the newly created project
-    }
-  } catch (error) {
-    console.error('Error saving or updating project:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-// GET route to fetch project details by ID
-// Ensure this route is set up in your server.js
-app.get('/api/projectsDetails', async (req, res) => {
-  try {
-    const projects = await ProjectDetails.find();  // This should return an array of projects
-    res.status(200).json(projects); // Send the array of projects as response
-  } catch (err) {
-    console.error("Error fetching project details:", err);
-    res.status(500).json({ message: 'Error fetching project details' });
-  }
-});
-
-
-
 // Define a Schema for the Revenue Data
 const revenueSchema = new mongoose.Schema({
     name: String,
@@ -373,7 +305,6 @@ app.put("/api/deals/edit/:id", async (req, res) => {
         res.status(500).json({ message: "Error editing deal" });
     }
 });
-
 
 // Update a deal's stage (used for drag-and-drop)
 app.put("/api/deals/:id", async (req, res) => {
@@ -787,226 +718,6 @@ app.delete('/api/organizations/:id', async (req, res) => {
 });
 
 
-const ContactSchema = new mongoose.Schema({
-    name: String,
-    email: String,
-    phone: String,
-    address: String,
-});
-const Contact = mongoose.model('Contact', ContactSchema);
-
-// Contact APIs
-app.get('/api/contacts', async (req, res) => {
-    try {
-        const contacts = await Contact.find();
-        res.status(200).json({ success: true, contacts });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error fetching contacts', error: err.message });
-    }
-});
-
-app.post('/api/contacts', async (req, res) => {
-    const { name, email, phone, address } = req.body;
-    if (!name || !email || !phone || !address) {
-        return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-    try {
-        const contact = new Contact({ name, email, phone, address });
-        await contact.save();
-        res.status(201).json({ success: true, message: 'Contact created successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error creating contact', error: err.message });
-    }
-});
-
-app.put('/api/contacts/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, email, phone, address } = req.body;
-    try {
-        const contact = await Contact.findByIdAndUpdate(id, { name, email, phone, address }, { new: true });
-        if (!contact) {
-            return res.status(404).json({ success: false, message: 'Contact not found' });
-        }
-        res.status(200).json({ success: true, message: 'Contact updated successfully', contact });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error updating contact', error: err.message });
-    }
-});
-
-app.delete('/api/contacts/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const contact = await Contact.findByIdAndDelete(id);
-        if (!contact) {
-            return res.status(404).json({ success: false, message: 'Contact not found' });
-        }
-        res.status(200).json({ success: true, message: 'Contact deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
-    }
-});
-
-
-const NewLeadSchema = new mongoose.Schema({
-    leadName: String,  // Add this field for the lead name
-    name: String,
-    email: String,
-    phone: String,
-    address: String,
-    dealStatus: String, // Add this field
-    message: String,
-});
-
-const NewLead = mongoose.model("NewLead", NewLeadSchema);
-
-
-app.get("/api/NewLeads", async (req, res) => {
-    try {
-        const leads = await NewLead.find();
-        res.status(200).json({ success: true, contacts: leads });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error fetching leads", error: err.message });
-    }
-});
-
-app.post("/api/NewLeads", async (req, res) => {
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
-
-    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-
-    try {
-        const newLead = new NewLead({ leadName, name, email, phone, address, dealStatus, message });
-        await newLead.save();
-        res.status(201).json({ success: true, message: "New lead created successfully" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error creating new lead", error: err.message });
-    }
-});
-
-
-
-// PUT Route to Update Deal Status
-app.put("/api/NewLeads/:id", async (req, res) => {
-    const { id } = req.params;
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
-
-    try {
-        const updatedLead = await NewLead.findByIdAndUpdate(
-            id,
-            { leadName, name, email, phone, address, dealStatus, message },
-            { new: true } // Return the updated document
-        );
-
-        if (!updatedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Lead updated successfully",
-            lead: updatedLead,
-        });
-    } catch (err) {
-        res.status(500).json({
-            success: false,
-            message: "Error updating lead",
-            error: err.message,
-        });
-    }
-});
-
-
-app.put("/api/NewLeads/edit/:id", async (req, res) => {
-    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
-    const { id } = req.params;
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
-
-    // Check for missing fields
-    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-
-    try {
-        // Update the lead in the database
-        const updatedLead = await NewLead.findByIdAndUpdate(
-            id,
-            { leadName, name, email, phone, address, dealStatus, message },
-            { new: true } // Return the updated lead document
-        );
-
-        // Handle case where the lead is not found
-        if (!updatedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        // Respond with success and the updated lead
-        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
-    } catch (error) {
-        // Handle server errors
-        res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
-    }
-});
-
-
-// Edit a lead
-app.put("/api/NewLeads/edit/:id", async (req, res) => {
-    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
-    const { id } = req.params;
-    const { name, email, phone, address, dealStatus, message } = req.body;
-
-    // Check for missing fields
-    if (!name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-
-    try {
-        // Update the lead in the database
-        const updatedLead = await NewLead.findByIdAndUpdate(
-            id,
-            { name, email, phone, address, dealStatus, message },
-            { new: true } // Return the updated lead document
-        );
-
-        // Handle case where the lead is not found
-        if (!updatedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        // Respond with success and the updated lead
-        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
-    } catch (error) {
-        // Handle server errors
-        res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
-    }
-});
-
-
-
-app.delete("/api/NewLeads/:id", async (req, res) => {
-    const { id } = req.params;
-
-    try {
-        const deletedLead = await NewLead.findByIdAndDelete(id);
-
-        if (!deletedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Lead deleted successfully",
-        });
-    } catch (err) {
-        res.status(500).json({
-            success: false,
-            message: "Error deleting lead",
-            error: err.message,
-        });
-    }
-});
-
 // Employee Schema definition
 const EmployeeSchema = new mongoose.Schema({
     empId: { type: String, required: true, unique: true }, // Employee ID (Unique)
@@ -1108,6 +819,142 @@ app.delete("/api/employees/:id", async (req, res) => {
     }
 });
 
+
+// Schema and Model
+const ServiceSchema = new mongoose.Schema({
+    name: { type: String, required: true },      // Service Name
+    dueDate: { type: Date, required: true },     // Due Date
+});
+
+const IntegrationSchema = new mongoose.Schema({
+    provider: { type: String, required: true },  // Provider Name
+    services: [ServiceSchema],                  // List of Services
+}, { timestamps: true });                       // Created and Updated timestamps
+
+const Integration = mongoose.model("Integration", IntegrationSchema);
+
+// Routes
+
+// Add new integration details
+app.post("/api/integrations", async (req, res) => {
+    const { provider, services } = req.body;
+
+    if (!provider || !services || services.length === 0) {
+        return res.status(400).json({ success: false, message: "Provider name and services are required." });
+    }
+
+    try {
+        const newIntegration = new Integration({ provider, services });
+        await newIntegration.save();
+
+        res.status(201).json({ success: true, message: "Integration added successfully!", data: newIntegration });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error adding integration.", error: error.message });
+    }
+});
+
+// Fetch all integrations
+app.get("/api/integrations", async (req, res) => {
+    try {
+        const integrations = await Integration.find();
+        res.status(200).json({ success: true, data: integrations });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error fetching integrations.", error: error.message });
+    }
+});
+
+// Fetch a single integration by ID
+app.get("/api/integrations/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const integration = await Integration.findById(id);
+        if (!integration) {
+            return res.status(404).json({ success: false, message: "Integration not found." });
+        }
+
+        res.status(200).json({ success: true, data: integration });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error fetching integration.", error: error.message });
+    }
+});
+
+// Delete integration
+app.delete("/api/integrations/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const deletedIntegration = await Integration.findByIdAndDelete(id);
+        if (!deletedIntegration) {
+            return res.status(404).json({ success: false, message: "Integration not found." });
+        }
+
+        res.status(200).json({ success: true, message: "Integration deleted successfully." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error deleting integration.", error: error.message });
+    }
+});
+
+
+
+const ContactSchema = new mongoose.Schema({
+    name: String,
+    email: String,
+    phone: String,
+    address: String,
+});
+const Contact = mongoose.model('Contact', ContactSchema);
+
+// Contact APIs
+app.get('/api/contacts', async (req, res) => {
+    try {
+        const contacts = await Contact.find();
+        res.status(200).json({ success: true, contacts });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error fetching contacts', error: err.message });
+    }
+});
+
+app.post('/api/contacts', async (req, res) => {
+    const { name, email, phone, address } = req.body;
+    if (!name || !email || !phone || !address) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    try {
+        const contact = new Contact({ name, email, phone, address });
+        await contact.save();
+        res.status(201).json({ success: true, message: 'Contact created successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error creating contact', error: err.message });
+    }
+});
+
+app.put('/api/contacts/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, email, phone, address } = req.body;
+    try {
+        const contact = await Contact.findByIdAndUpdate(id, { name, email, phone, address }, { new: true });
+        if (!contact) {
+            return res.status(404).json({ success: false, message: 'Contact not found' });
+        }
+        res.status(200).json({ success: true, message: 'Contact updated successfully', contact });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error updating contact', error: err.message });
+    }
+});
+
+app.delete('/api/contacts/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const contact = await Contact.findByIdAndDelete(id);
+        if (!contact) {
+            return res.status(404).json({ success: false, message: 'Contact not found' });
+        }
+        res.status(200).json({ success: true, message: 'Contact deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
+    }
+});
 
 // Quote Model
 const Quote = mongoose.model("Quote", new mongoose.Schema({
@@ -1270,4 +1117,4 @@ app.delete("/api/quotations/:id", async (req, res) => {
     } catch (err) {
         res.status(400).json({ error: "Failed to delete quotation", details: err });
     }
-}); 
+});
