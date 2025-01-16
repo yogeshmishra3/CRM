@@ -1007,7 +1007,106 @@ app.delete("/api/NewLeads/:id", async (req, res) => {
     }
 });
 
+// Employee Schema definition
+const EmployeeSchema = new mongoose.Schema({
+    empId: { type: String, required: true, unique: true }, // Employee ID (Unique)
+    name: { type: String, required: true },               // Employee's full name
+    email: { type: String, required: true, unique: true }, // Employee's email (Unique)
+    phone: { type: String, required: true },               // Employee's phone number
+    address: { type: String, required: true },             // Employee's home address
+    department: { type: String, required: true },          // Department in which the employee works
+    position: { type: String, required: true },            // Job position of the employee
+    dateOfJoining: { type: Date, required: true },         // Date when employee joined the company
+    dateOfBirth: { type: Date },                           // Date of birth of the employee (optional)
+    salary: { type: Number, required: true },              // Salary of the employee
+    manager: { type: String },                             // Name of the manager (optional)
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' }, // Employee status
+    message: { type: String },                             // Any additional note or message
+});
 
+// Employee Model
+const Employee = mongoose.model("Employee", EmployeeSchema);
+
+// Fetch all employees
+app.get("/api/employees", async (req, res) => {
+    try {
+        const employees = await Employee.find();
+        res.status(200).json({ success: true, employees });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error fetching employees", error: err.message });
+    }
+});
+
+// Add a new employee
+app.post("/api/employees", async (req, res) => {
+    const { empId, name, email, phone, address, department, position, dateOfJoining, dateOfBirth, salary, manager, status, message } = req.body;
+
+    if (!empId || !name || !email || !phone || !address || !department || !position || !dateOfJoining || !salary) {
+        return res.status(400).json({ success: false, message: "All required fields must be filled!" });
+    }
+
+    try {
+        const newEmployee = new Employee({
+            empId,
+            name,
+            email,
+            phone,
+            address,
+            department,
+            position,
+            dateOfJoining,
+            dateOfBirth,
+            salary,
+            manager,
+            status,
+            message,
+        });
+
+        await newEmployee.save();
+        res.status(201).json({ success: true, message: "New employee added successfully!" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error adding employee", error: err.message });
+    }
+});
+
+// Update employee details
+app.put("/api/employees/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name, email, phone, address, department, position, dateOfJoining, dateOfBirth, salary, manager, status, message } = req.body;
+
+    try {
+        const updatedEmployee = await Employee.findByIdAndUpdate(
+            id,
+            { name, email, phone, address, department, position, dateOfJoining, dateOfBirth, salary, manager, status, message },
+            { new: true } // Return the updated document
+        );
+
+        if (!updatedEmployee) {
+            return res.status(404).json({ success: false, message: "Employee not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Employee updated successfully", employee: updatedEmployee });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error updating employee", error: err.message });
+    }
+});
+
+// Delete an employee
+app.delete("/api/employees/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const deletedEmployee = await Employee.findByIdAndDelete(id);
+
+        if (!deletedEmployee) {
+            return res.status(404).json({ success: false, message: "Employee not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Employee deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error deleting employee", error: err.message });
+    }
+});
 
 
 // Quote Model
