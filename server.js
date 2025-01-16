@@ -895,6 +895,87 @@ app.delete("/api/integrations/:id", async (req, res) => {
     }
 });
 
+// Lead Schema and Model
+const leadSchema = new mongoose.Schema(
+    {
+      leadName: { type: String, required: true }, // Lead name
+      name: { type: String, required: true }, // Client name
+      email: { type: String, required: true },
+      phone: { type: String, required: true },
+      address: { type: String, required: true },
+      message: { type: String },
+      dealStatus: { type: String, default: 'disconnected' }, // Deal status: connected/disconnected
+    },
+    { timestamps: true }
+  );
+  
+  const Lead = mongoose.model('NewLead', leadSchema);
+  
+  // API Routes
+  
+  // Fetch all leads
+  app.get('/api/NewLeads', async (req, res) => {
+    try {
+      const contacts = await Lead.find();
+      res.json({ success: true, contacts });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Failed to fetch leads', error });
+    }
+  });
+  
+  // Add a new lead
+  app.post('/api/NewLeads', async (req, res) => {
+    try {
+      const newLead = new Lead(req.body);
+      const savedLead = await newLead.save();
+      res.json({ success: true, lead: savedLead });
+    } catch (error) {
+      res.status(400).json({ success: false, message: 'Failed to add lead', error });
+    }
+  });
+  
+  // Edit an existing lead
+  app.put('/api/NewLeads/edit/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updatedLead = await Lead.findByIdAndUpdate(id, req.body, { new: true });
+      if (!updatedLead) {
+        return res.status(404).json({ success: false, message: 'Lead not found' });
+      }
+      res.json({ success: true, lead: updatedLead });
+    } catch (error) {
+      res.status(400).json({ success: false, message: 'Failed to update lead', error });
+    }
+  });
+  
+  // Delete a lead
+  app.delete('/api/NewLeads/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deletedLead = await Lead.findByIdAndDelete(id);
+      if (!deletedLead) {
+        return res.status(404).json({ success: false, message: 'Lead not found' });
+      }
+      res.json({ success: true, message: 'Lead deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Failed to delete lead', error });
+    }
+  });
+  
+  // Toggle deal status
+  app.put('/api/NewLeads/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { dealStatus } = req.body;
+      const updatedLead = await Lead.findByIdAndUpdate(id, { dealStatus }, { new: true });
+      if (!updatedLead) {
+        return res.status(404).json({ success: false, message: 'Lead not found' });
+      }
+      res.json({ success: true, lead: updatedLead });
+    } catch (error) {
+      res.status(400).json({ success: false, message: 'Failed to toggle deal status', error });
+    }
+  });
 
 
 const ContactSchema = new mongoose.Schema({
