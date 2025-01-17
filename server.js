@@ -309,14 +309,14 @@ app.post('/api/top-deals', async (req, res) => {
 });
 
 // Schemas
-const dealSchema = new mongoose.Schema({
+const transactionSchema = new mongoose.Schema({
     name: { type: String, required: true },
     amount: { type: Number, required: true },
     owner: { type: String, required: true },
     stage: { type: String, required: true },
 });
 
-const recycledDealSchema = new mongoose.Schema({
+const recycledTransactionSchema = new mongoose.Schema({
     name: String,
     amount: Number,
     owner: String,
@@ -324,149 +324,160 @@ const recycledDealSchema = new mongoose.Schema({
 });
 
 // Models
-const Deal = mongoose.model("Deal", dealSchema);
-const RecycledDeal = mongoose.model("RecycledDeal", recycledDealSchema);
+const Transaction = mongoose.model("Transaction", transactionSchema);
+const RecycledTransaction = mongoose.model("RecycledTransaction", recycledTransactionSchema);
 
 // API Routes
 
-// Get all deals
-app.get("/api/deals", async (req, res) => {
+// Get all transactions
+app.get("/api/transactions", async (req, res) => {
     try {
-        const deals = await Deal.find();
-        res.json(deals);
+        const transactions = await Transaction.find();
+        res.json(transactions);
     } catch (error) {
-        res.status(500).json({ message: "Error fetching deals" });
+        res.status(500).json({ message: "Error fetching transactions" });
     }
 });
 
-// Create a new deal
-app.post("/api/deals", async (req, res) => {
+// Create a new transaction (with duplicate checks)
+app.post("/api/transactions", async (req, res) => {
+    console.log("Request Body:", req.body); // Debugging line
     const { name, amount, owner, stage } = req.body;
-    try {
-        const newDeal = new Deal({ name, amount, owner, stage });
-        await newDeal.save();
-        res.status(201).json(newDeal);
-    } catch (error) {
-        res.status(400).json({ message: "Error creating deal" });
-    }
-});
-
-// Edit a deal (Update name, owner, and amount)
-app.put("/api/deals/edit/:id", async (req, res) => {
-    const { id } = req.params;
-    const { name, owner, amount } = req.body;
 
     try {
-        const updatedDeal = await Deal.findByIdAndUpdate(
-            id,
-            { name, owner, amount },
-            { new: true } // Return the updated deal
-        );
-
-        if (!updatedDeal) {
-            return res.status(404).json({ message: "Deal not found" });
+        // Check if a transaction with the same name and owner already exists
+        const duplicate = await Transaction.findOne({ name, owner });
+        if (duplicate) {
+            // Delete the existing duplicate
+            await Transaction.findByIdAndDelete(duplicate._id);
+            console.log(`Deleted duplicate transaction: ${ duplicate._id }`);
         }
 
-        res.json(updatedDeal);
+        // Create and save the new transaction
+        const newTransaction = new Transaction({ name, amount, owner, stage });
+        await newTransaction.save();
+
+        res.status(201).json(newTransaction);
     } catch (error) {
-        console.error("Error editing deal:", error);
-        res.status(500).json({ message: "Error editing deal" });
+        console.error("Error creating transaction:", error);
+        res.status(400).json({ message: "Error creating transaction" });
     }
 });
 
-
-// Update a deal's stage (used for drag-and-drop)
-app.put("/api/deals/:id", async (req, res) => {
+app.put("/api/transactions/:id", async (req, res) => {
     const { id } = req.params;
     const { stage, amount } = req.body;
 
     try {
-        const updatedDeal = await Deal.findByIdAndUpdate(
+        const updatedTransaction = await Transaction.findByIdAndUpdate(
             id,
             { stage, amount },
             { new: true }
         );
 
-        if (!updatedDeal) {
-            return res.status(404).json({ message: "Deal not found" });
+        if (!updatedTransaction) {
+            return res.status(404).json({ message: "Transaction not found" });
         }
 
-        res.json(updatedDeal);
+        res.json(updatedTransaction); // Send updated transaction back
     } catch (error) {
-        console.error("Error updating deal:", error);
-        res.status(500).json({ message: "Error updating deal" });
+        console.error("Error updating transaction:", error);
+        res.status(500).json({ message: "Error updating transaction" });
     }
 });
 
-// Delete a deal
-app.delete("/api/deals/:id", async (req, res) => {
+
+// Update a transaction's stage (used for drag-and-drop)
+app.put("/api/transactions/:id", async (req, res) => {
+    const { id } = req.params;
+    const { stage, amount } = req.body;
+
+    try {
+        const updatedTransaction = await Transaction.findByIdAndUpdate(
+            id,
+            { stage, amount }, // Update both stage and amount
+            { new: true }
+        );
+
+        if (!updatedTransaction) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+
+        res.json(updatedTransaction);
+    } catch (error) {
+        console.error("Error updating transaction:", error);
+        res.status(500).json({ message: "Error updating transaction" });
+    }
+});
+
+// Delete a transaction
+app.delete("/api/transactions/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const deal = await Deal.findByIdAndDelete(id);
-        if (!deal) {
-            return res.status(404).json({ message: "Deal not found" });
+        const transaction = await Transaction.findByIdAndDelete(id);
+        if (!transaction) {
+            return res.status(404).json({ message: "Transaction not found" });
         }
-        res.json({ message: "Deal deleted successfully" });
+        res.json({ message: "Transaction deleted successfully" });
     } catch (error) {
-        res.status(500).json({ message: "Error deleting deal" });
+        res.status(500).json({ message: "Error deleting transaction" });
     }
 });
 
-// Archive a deal
-app.post("/api/deals/archive/:id", async (req, res) => {
+// Archive a transaction
+app.post("/api/transactions/archive/:id", async (req, res) => {
     const { id } = req.params;
     try {
-        const deal = await Deal.findByIdAndDelete(id);
-        if (!deal) return res.status(404).json({ message: "Deal not found" });
+        const transaction = await Transaction.findByIdAndDelete(id);
+        if (!transaction) return res.status(404).json({ message: "Transaction not found" });
 
-        const recycledDeal = new RecycledDeal(deal.toObject());
-        await recycledDeal.save();
-        res.json(recycledDeal);
+        const recycledTransaction = new RecycledTransaction(transaction.toObject());
+        await recycledTransaction.save();
+        res.json(recycledTransaction);
     } catch (error) {
-        res.status(500).json({ message: "Error archiving deal" });
+        res.status(500).json({ message: "Error archiving transaction" });
     }
 });
 
-// Get all recycled deals
-app.get("/api/recycledDeals", async (req, res) => {
+// Get all recycled transactions
+app.get("/api/recycledTransactions", async (req, res) => {
     try {
-        const recycledDeals = await RecycledDeal.find();
-        res.json(recycledDeals);
+        const recycledTransactions = await RecycledTransaction.find();
+        res.json(recycledTransactions);
     } catch (error) {
-        res.status(500).json({ message: "Error fetching recycled deals" });
+        res.status(500).json({ message: "Error fetching recycled transactions" });
     }
 });
 
-// Restore a recycled deal
-app.post("/api/recycledDeals/restore/:id", async (req, res) => {
+// Restore a recycled transaction
+app.post("/api/recycledTransactions/restore/:id", async (req, res) => {
     const { id } = req.params;
     try {
-        const recycledDeal = await RecycledDeal.findByIdAndDelete(id);
-        if (!recycledDeal)
-            return res.status(404).json({ message: "Recycled deal not found" });
+        const recycledTransaction = await RecycledTransaction.findByIdAndDelete(id);
+        if (!recycledTransaction)
+            return res.status(404).json({ message: "Recycled transaction not found" });
 
-        const restoredDeal = new Deal(recycledDeal.toObject());
-        await restoredDeal.save();
-        res.json(restoredDeal);
+        const restoredTransaction = new Transaction(recycledTransaction.toObject());
+        await restoredTransaction.save();
+        res.json(restoredTransaction);
     } catch (error) {
-        res.status(500).json({ message: "Error restoring deal" });
+        res.status(500).json({ message: "Error restoring transaction" });
     }
 });
 
-// Delete a recycled deal
-app.delete("/api/recycledDeals/:id", async (req, res) => {
+// Delete a recycled transaction
+app.delete("/api/recycledTransactions/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const recycledDeal = await RecycledDeal.findByIdAndDelete(id);
-        if (!recycledDeal) {
-            return res.status(404).json({ message: "Recycled deal not found" });
+        const recycledTransaction = await RecycledTransaction.findByIdAndDelete(id);
+        if (!recycledTransaction) {
+            return res.status(404).json({ message: "Recycled transaction not found" });
         }
-        res.json({ message: "Recycled deal deleted successfully" });
+        res.json({ message: "Recycled transaction deleted successfully" });
     } catch (error) {
-        res.status(500).json({ message: "Error deleting recycled deal" });
+        res.status(500).json({ message: "Error deleting recycled transaction" });
     }
 });
-
 
 
 
@@ -1109,6 +1120,135 @@ app.delete("/api/employees/:id", async (req, res) => {
 });
 
 
+// Schema and Model
+const ServiceSchema = new mongoose.Schema({
+    name: { type: String, required: true },      // Service Name
+    dueDate: { type: Date, required: true },     // Due Date
+});
+
+const IntegrationSchema = new mongoose.Schema({
+    provider: { type: String, required: true },  // Provider Name
+    services: [ServiceSchema],                  // List of Services
+}, { timestamps: true });                       // Created and Updated timestamps
+
+const Integration = mongoose.model("Integration", IntegrationSchema);
+
+// Routes
+
+// Add new integration details
+app.post("/api/integrations", async (req, res) => {
+    const { provider, services } = req.body;
+
+    if (!provider || !services || services.length === 0) {
+        return res.status(400).json({ success: false, message: "Provider name and services are required." });
+    }
+
+    try {
+        const newIntegration = new Integration({ provider, services });
+        await newIntegration.save();
+
+        res.status(201).json({ success: true, message: "Integration added successfully!", data: newIntegration });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error adding integration.", error: error.message });
+    }
+});
+
+// Fetch all integrations
+app.get("/api/integrations", async (req, res) => {
+    try {
+        const integrations = await Integration.find();
+        res.status(200).json({ success: true, data: integrations });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error fetching integrations.", error: error.message });
+    }
+});
+
+// Fetch a single integration by ID
+app.get("/api/integrations/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const integration = await Integration.findById(id);
+        if (!integration) {
+            return res.status(404).json({ success: false, message: "Integration not found." });
+        }
+
+        res.status(200).json({ success: true, data: integration });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error fetching integration.", error: error.message });
+    }
+});
+
+// Delete integration
+app.delete("/api/integrations/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const deletedIntegration = await Integration.findByIdAndDelete(id);
+        if (!deletedIntegration) {
+            return res.status(404).json({ success: false, message: "Integration not found." });
+        }
+
+        res.status(200).json({ success: true, message: "Integration deleted successfully." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error deleting integration.", error: error.message });
+    }
+});
+
+
+
+
+// Contact APIs
+app.get('/api/contacts', async (req, res) => {
+    try {
+        const contacts = await Contact.find();
+        res.status(200).json({ success: true, contacts });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error fetching contacts', error: err.message });
+    }
+});
+
+app.post('/api/contacts', async (req, res) => {
+    const { name, email, phone, address } = req.body;
+    if (!name || !email || !phone || !address) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    try {
+        const contact = new Contact({ name, email, phone, address });
+        await contact.save();
+        res.status(201).json({ success: true, message: 'Contact created successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error creating contact', error: err.message });
+    }
+});
+
+app.put('/api/contacts/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, email, phone, address } = req.body;
+    try {
+        const contact = await Contact.findByIdAndUpdate(id, { name, email, phone, address }, { new: true });
+        if (!contact) {
+            return res.status(404).json({ success: false, message: 'Contact not found' });
+        }
+        res.status(200).json({ success: true, message: 'Contact updated successfully', contact });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error updating contact', error: err.message });
+    }
+});
+
+app.delete('/api/contacts/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const contact = await Contact.findByIdAndDelete(id);
+        if (!contact) {
+            return res.status(404).json({ success: false, message: 'Contact not found' });
+        }
+        res.status(200).json({ success: true, message: 'Contact deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
+    }
+});
+
 // Quote Model
 const Quote = mongoose.model("Quote", new mongoose.Schema({
     date: { type: Date, required: true },
@@ -1190,6 +1330,15 @@ module.exports = (req, res) => {
 };
 
 
+
+
+
+
+
+
+
+
+
 const quotationSchema = new mongoose.Schema({
     CompanyRequirement: String,
     quotationNo: String,
@@ -1261,4 +1410,4 @@ app.delete("/api/quotations/:id", async (req, res) => {
     } catch (err) {
         res.status(400).json({ error: "Failed to delete quotation", details: err });
     }
-}); 
+});
