@@ -308,7 +308,7 @@ app.post('/api/top-deals', async (req, res) => {
     }
 });
 
-// Schemas
+// Define the Transaction Schema (For Leads)
 const transactionSchema = new mongoose.Schema({
     name: { type: String, required: true },
     amount: { type: Number, required: true },
@@ -316,6 +316,7 @@ const transactionSchema = new mongoose.Schema({
     stage: { type: String, required: true },
 });
 
+// Define the Recycled Transaction Schema (Archived Leads)
 const recycledTransactionSchema = new mongoose.Schema({
     name: String,
     amount: Number,
@@ -323,40 +324,37 @@ const recycledTransactionSchema = new mongoose.Schema({
     stage: String,
 });
 
-// Models
+// Models for Transactions (Leads) and Recycled Transactions (Archived)
 const Transaction = mongoose.model("Transaction", transactionSchema);
 const RecycledTransaction = mongoose.model("RecycledTransaction", recycledTransactionSchema);
 
 // API Routes
 
-// Get all transactions
+// Get all transactions (Leads)
 app.get("/api/transactions", async (req, res) => {
     try {
         const transactions = await Transaction.find();
         res.json(transactions);
     } catch (error) {
+        console.error("Error fetching transactions:", error);
         res.status(500).json({ message: "Error fetching transactions" });
     }
 });
 
-// Create a new transaction (with duplicate checks)
+// Create a new transaction (Lead) - prevents duplicate leads (by name and owner)
 app.post("/api/transactions", async (req, res) => {
-    console.log("Request Body:", req.body); // Debugging line
     const { name, amount, owner, stage } = req.body;
 
     try {
         // Check if a transaction with the same name and owner already exists
         const duplicate = await Transaction.findOne({ name, owner });
         if (duplicate) {
-            // Delete the existing duplicate
-            await Transaction.findByIdAndDelete(duplicate._id);
-            console.log(`Deleted duplicate transaction: ${duplicate._id}`);
+            return res.status(400).json({ message: "Duplicate lead exists" });
         }
 
-        // Create and save the new transaction
+        // Create and save the new transaction (lead)
         const newTransaction = new Transaction({ name, amount, owner, stage });
         await newTransaction.save();
-
         res.status(201).json(newTransaction);
     } catch (error) {
         console.error("Error creating transaction:", error);
@@ -364,124 +362,117 @@ app.post("/api/transactions", async (req, res) => {
     }
 });
 
+// Update the stage of a transaction (Lead) - prevents stage reverting to earlier states
 app.put("/api/transactions/:id", async (req, res) => {
     const { id } = req.params;
     const { stage, amount } = req.body;
 
     try {
-        const updatedTransaction = await Transaction.findByIdAndUpdate(
-            id,
-            { stage, amount },
-            { new: true }
-        );
-
-        if (!updatedTransaction) {
+        // Get the current transaction to check the stage before updating
+        const transaction = await Transaction.findById(id);
+        if (!transaction) {
             return res.status(404).json({ message: "Transaction not found" });
         }
 
-        res.json(updatedTransaction); // Send updated transaction back
+        const validStages = ["Lead", "Contacted", "Proposal", "Qualified"];
+        const currentStageIndex = validStages.indexOf(transaction.stage);
+        const nextStageIndex = validStages.indexOf(stage);
+
+        // If trying to move backward or invalid stage, deny the update
+        if (nextStageIndex <= currentStageIndex) {
+            return res.status(400).json({ message: "Stage cannot be reverted" });
+        }
+
+        // Update the transaction
+        transaction.stage = stage;
+        if (amount) {
+            transaction.amount = amount;
+        }
+        await transaction.save();
+        res.json(transaction);
     } catch (error) {
         console.error("Error updating transaction:", error);
         res.status(500).json({ message: "Error updating transaction" });
     }
 });
 
-
-// Update a transaction's stage
-app.put("/api/transactions/:id", async (req, res) => {
-    const { id } = req.params;
-    const { stage } = req.body;
-
-    try {
-        // Find the transaction and update its stage
-        const updatedTransaction = await Transaction.findByIdAndUpdate(
-            id,
-            { stage }, // Only update the stage
-            { new: true }
-        );
-
-        if (!updatedTransaction) {
-            return res.status(404).json({ message: "Transaction not found" });
-        }
-
-        res.json(updatedTransaction); // Send the updated transaction back
-    } catch (error) {
-        console.error("Error updating transaction:", error);
-        res.status(500).json({ message: "Error updating transaction" });
-    }
-});
-
-
-
-// Delete a transaction
+// Delete a transaction (Lead)
 app.delete("/api/transactions/:id", async (req, res) => {
+    const { id } = req.params;
     try {
-        const { id } = req.params;
         const transaction = await Transaction.findByIdAndDelete(id);
         if (!transaction) {
             return res.status(404).json({ message: "Transaction not found" });
         }
         res.json({ message: "Transaction deleted successfully" });
     } catch (error) {
+        console.error("Error deleting transaction:", error);
         res.status(500).json({ message: "Error deleting transaction" });
     }
 });
 
-// Archive a transaction
+// Archive a transaction (move it to recycled)
 app.post("/api/transactions/archive/:id", async (req, res) => {
     const { id } = req.params;
     try {
         const transaction = await Transaction.findByIdAndDelete(id);
-        if (!transaction) return res.status(404).json({ message: "Transaction not found" });
+        if (!transaction) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
 
+        // Create a recycled transaction
         const recycledTransaction = new RecycledTransaction(transaction.toObject());
         await recycledTransaction.save();
         res.json(recycledTransaction);
     } catch (error) {
+        console.error("Error archiving transaction:", error);
         res.status(500).json({ message: "Error archiving transaction" });
     }
 });
 
-// Get all recycled transactions
+// Get all recycled transactions (Archived leads)
 app.get("/api/recycledTransactions", async (req, res) => {
     try {
         const recycledTransactions = await RecycledTransaction.find();
         res.json(recycledTransactions);
     } catch (error) {
+        console.error("Error fetching recycled transactions:", error);
         res.status(500).json({ message: "Error fetching recycled transactions" });
     }
 });
 
-// Restore a recycled transaction
+// Restore a recycled transaction back to active transactions
 app.post("/api/recycledTransactions/restore/:id", async (req, res) => {
     const { id } = req.params;
     try {
         const recycledTransaction = await RecycledTransaction.findByIdAndDelete(id);
-        if (!recycledTransaction)
+        if (!recycledTransaction) {
             return res.status(404).json({ message: "Recycled transaction not found" });
+        }
 
         const restoredTransaction = new Transaction(recycledTransaction.toObject());
         await restoredTransaction.save();
         res.json(restoredTransaction);
     } catch (error) {
+        console.error("Error restoring transaction:", error);
         res.status(500).json({ message: "Error restoring transaction" });
     }
 });
 
-// Delete a recycled transaction
+// Delete a recycled transaction (permanently)
 app.delete("/api/recycledTransactions/:id", async (req, res) => {
+    const { id } = req.params;
     try {
-        const { id } = req.params;
         const recycledTransaction = await RecycledTransaction.findByIdAndDelete(id);
         if (!recycledTransaction) {
             return res.status(404).json({ message: "Recycled transaction not found" });
         }
         res.json({ message: "Recycled transaction deleted successfully" });
     } catch (error) {
+        console.error("Error deleting recycled transaction:", error);
         res.status(500).json({ message: "Error deleting recycled transaction" });
     }
 });
-
 
 
 
