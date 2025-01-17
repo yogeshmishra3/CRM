@@ -1430,3 +1430,16 @@ const getExpiringServices = async () => {
             })),
     }));
 };
+const serviceSchemaIntegration = new mongoose.Schema({
+    provider: { type: String, required: true },
+    services: [
+        {
+            name: { type: String, required: true },
+            dueDate: { type: Date, required: true },
+        },
+    ],
+});
+
+const serviceIntegration = mongoose.model("ServiceIntegration", serviceSchema);
+
+module.exports = serviceIntegration;
