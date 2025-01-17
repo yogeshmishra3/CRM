@@ -387,15 +387,16 @@ app.put("/api/transactions/:id", async (req, res) => {
 });
 
 
-// Update a transaction's stage (used for drag-and-drop)
+// Update a transaction's stage
 app.put("/api/transactions/:id", async (req, res) => {
     const { id } = req.params;
-    const { stage, amount } = req.body;
+    const { stage } = req.body;
 
     try {
+        // Find the transaction and update its stage
         const updatedTransaction = await Transaction.findByIdAndUpdate(
             id,
-            { stage, amount }, // Update both stage and amount
+            { stage }, // Only update the stage
             { new: true }
         );
 
@@ -403,12 +404,14 @@ app.put("/api/transactions/:id", async (req, res) => {
             return res.status(404).json({ message: "Transaction not found" });
         }
 
-        res.json(updatedTransaction);
+        res.json(updatedTransaction); // Send the updated transaction back
     } catch (error) {
         console.error("Error updating transaction:", error);
         res.status(500).json({ message: "Error updating transaction" });
     }
 });
+
+
 
 // Delete a transaction
 app.delete("/api/transactions/:id", async (req, res) => {
