@@ -1190,15 +1190,6 @@ module.exports = (req, res) => {
 };
 
 
-
-
-
-
-
-
-
-
-
 const quotationSchema = new mongoose.Schema({
     CompanyRequirement: String,
     quotationNo: String,
@@ -1270,4 +1261,43 @@ app.delete("/api/quotations/:id", async (req, res) => {
     } catch (err) {
         res.status(400).json({ error: "Failed to delete quotation", details: err });
     }
-}); 
+});
+// API Routes
+app.get("/api/integration-notifications", async (req, res) => {
+    try {
+        const notifications = await getExpiringServices();
+        res.json({ notifications });
+    } catch (error) {
+        console.error("Error fetching notifications:", error.message);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// Get expiring services (notifications)
+const getExpiringServices = async () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const expiringServices = await Service.find({
+        "services.dueDate": {
+            $gte: new Date(today.toISOString().split("T")[0]),
+            $lt: new Date(tomorrow.toISOString().split("T")[0]),
+        },
+    });
+
+    // Format the response to include the provider and service details
+    return expiringServices.map((provider) => ({
+        provider: provider.provider,
+        services: provider.services
+            .filter(
+                (service) =>
+                    new Date(service.dueDate).toISOString().split("T")[0] ===
+                    tomorrow.toISOString().split("T")[0]
+            )
+            .map((service) => ({
+                name: service.name,
+                dueDate: service.dueDate,
+            })),
+    }));
+};
