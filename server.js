@@ -314,7 +314,74 @@ const transactionSchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     owner: { type: String, required: true },
     stage: { type: String, required: true },
+    scheduledMeeting: { type: Date, default: null }  // New field for scheduled date/time
 });
+
+// API endpoint to fetch all transactions
+app.get('/api/transactions', async (req, res) => {
+    try {
+      // Fetch deals (transactions) from the database, including the scheduledMeeting field
+      const deals = await Transaction.find(); // This fetches all deals with all fields, including 'scheduledMeeting'
+      
+      // Send the deals as a response to the client
+      res.json(deals);
+    } catch (error) {
+      console.error('Error fetching deals:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+
+// Schedule a meeting for a transaction (Lead)
+app.post("/api/transactions/scheduleMeeting/:id", async (req, res) => {
+    const { id } = req.params;
+    const { meetingDate } = req.body; // You could also add other meeting details here
+
+    try {
+        const transaction = await Transaction.findById(id);
+        if (!transaction) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+
+        // Update the meetingScheduled field with the provided date
+        transaction.meetingScheduled = new Date(meetingDate);
+        await transaction.save();
+        res.json(transaction);
+    } catch (error) {
+        console.error("Error scheduling meeting:", error);
+        res.status(500).json({ message: "Error scheduling meeting" });
+    }
+});
+
+// Route to schedule a meeting for a transaction (Lead or Proposal)
+// In your server.js or app.js, add the route to handle the scheduling:
+
+// Backend endpoint for scheduling a meeting
+app.put('/api/transactions/schedule/:dealId', async (req, res) => {
+    const { dealId } = req.params;
+    const { scheduledMeeting } = req.body; // Date passed from frontend
+    
+    if (!scheduledMeeting) {
+      return res.status(400).json({ message: 'Scheduled date and time is required' });
+    }
+  
+    try {
+      const transaction = await Transaction.findByIdAndUpdate(dealId, {
+        scheduledMeeting: new Date(scheduledMeeting), // Convert to Date object
+      }, { new: true });
+  
+      if (!transaction) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+  
+      res.json({ transaction });
+    } catch (error) {
+      console.error('Error scheduling meeting:', error);
+      res.status(500).json({ message: 'Error scheduling meeting' });
+    }
+  });
+  
+
 
 // Define the Recycled Transaction Schema (Archived Leads)
 const recycledTransactionSchema = new mongoose.Schema({
