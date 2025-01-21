@@ -735,63 +735,6 @@ app.delete('/api/Leads/:id', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error deleting Leads', error: error.message });
     }
 });
-
-// Organization APIs
-app.get('/api/organizations', async (req, res) => {
-    try {
-        const organizations = await Organization.find();
-        res.status(200).json({ success: true, organizations });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error fetching organizations', error: error.message });
-    }
-});
-
-app.post('/api/organizations', async (req, res) => {
-    const { name, type, date, customer, balance, total, status } = req.body;
-    if (!name || !type || !date || !customer || !balance || !total || !status) {
-        return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-    try {
-        const newOrganization = new Organization({ name, type, date, customer, balance, total, status });
-        await newOrganization.save();
-        res.status(201).json({ success: true, message: 'Organization added successfully' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error adding organization', error: error.message });
-    }
-});
-
-app.put('/api/organizations/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, type, date, customer, balance, total, status } = req.body;
-    try {
-        const updatedOrganization = await Organization.findByIdAndUpdate(
-            id,
-            { name, type, date, customer, balance, total, status },
-            { new: true }
-        );
-        if (!updatedOrganization) {
-            return res.status(404).json({ success: false, message: 'Organization not found' });
-        }
-        res.status(200).json({ success: true, message: 'Organization updated successfully', organization: updatedOrganization });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error updating organization', error: error.message });
-    }
-});
-
-app.delete('/api/organizations/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const deletedOrganization = await Organization.findByIdAndDelete(id);
-        if (!deletedOrganization) {
-            return res.status(404).json({ success: false, message: 'Organization not found' });
-        }
-        res.status(200).json({ success: true, message: 'Organization deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error deleting organization', error: error.message });
-    }
-});
-
-
 const ContactSchema = new mongoose.Schema({
     name: String,
     email: String,
