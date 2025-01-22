@@ -314,7 +314,74 @@ const transactionSchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     owner: { type: String, required: true },
     stage: { type: String, required: true },
+    scheduledMeeting: { type: Date, default: null }  // New field for scheduled date/time
 });
+
+// API endpoint to fetch all transactions
+app.get('/api/transactions', async (req, res) => {
+    try {
+        // Fetch deals (transactions) from the database, including the scheduledMeeting field
+        const deals = await Transaction.find(); // This fetches all deals with all fields, including 'scheduledMeeting'
+
+        // Send the deals as a response to the client
+        res.json(deals);
+    } catch (error) {
+        console.error('Error fetching deals:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+// Schedule a meeting for a transaction (Lead)
+app.post("/api/transactions/scheduleMeeting/:id", async (req, res) => {
+    const { id } = req.params;
+    const { meetingDate } = req.body; // You could also add other meeting details here
+
+    try {
+        const transaction = await Transaction.findById(id);
+        if (!transaction) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+
+        // Update the meetingScheduled field with the provided date
+        transaction.meetingScheduled = new Date(meetingDate);
+        await transaction.save();
+        res.json(transaction);
+    } catch (error) {
+        console.error("Error scheduling meeting:", error);
+        res.status(500).json({ message: "Error scheduling meeting" });
+    }
+});
+
+// Route to schedule a meeting for a transaction (Lead or Proposal)
+// In your server.js or app.js, add the route to handle the scheduling:
+
+// Backend endpoint for scheduling a meeting
+app.put('/api/transactions/schedule/:dealId', async (req, res) => {
+    const { dealId } = req.params;
+    const { scheduledMeeting } = req.body; // Date passed from frontend
+
+    if (!scheduledMeeting) {
+        return res.status(400).json({ message: 'Scheduled date and time is required' });
+    }
+
+    try {
+        const transaction = await Transaction.findByIdAndUpdate(dealId, {
+            scheduledMeeting: new Date(scheduledMeeting), // Convert to Date object
+        }, { new: true });
+
+        if (!transaction) {
+            return res.status(404).json({ message: 'Deal not found' });
+        }
+
+        res.json({ transaction });
+    } catch (error) {
+        console.error('Error scheduling meeting:', error);
+        res.status(500).json({ message: 'Error scheduling meeting' });
+    }
+});
+
+
 
 // Define the Recycled Transaction Schema (Archived Leads)
 const recycledTransactionSchema = new mongoose.Schema({
@@ -365,36 +432,29 @@ app.post("/api/transactions", async (req, res) => {
 // Update the stage of a transaction (Lead) - prevents stage reverting to earlier states
 app.put("/api/transactions/:id", async (req, res) => {
     const { id } = req.params;
-    const { stage, amount } = req.body;
+    const { stage } = req.body;  // Get the new stage from the request body
 
     try {
-        // Get the current transaction to check the stage before updating
         const transaction = await Transaction.findById(id);
         if (!transaction) {
             return res.status(404).json({ message: "Transaction not found" });
         }
 
         const validStages = ["Lead", "Contacted", "Proposal", "Qualified"];
-        const currentStageIndex = validStages.indexOf(transaction.stage);
-        const nextStageIndex = validStages.indexOf(stage);
-
-        // If trying to move backward or invalid stage, deny the update
-        if (nextStageIndex <= currentStageIndex) {
-            return res.status(400).json({ message: "Stage cannot be reverted" });
+        if (!validStages.includes(stage)) {
+            return res.status(400).json({ message: "Invalid stage" });
         }
 
-        // Update the transaction
         transaction.stage = stage;
-        if (amount) {
-            transaction.amount = amount;
-        }
         await transaction.save();
-        res.json(transaction);
+        res.json(transaction);  // Send the updated transaction back as response
     } catch (error) {
         console.error("Error updating transaction:", error);
         res.status(500).json({ message: "Error updating transaction" });
     }
 });
+
+
 
 // Delete a transaction (Lead)
 app.delete("/api/transactions/:id", async (req, res) => {
@@ -473,7 +533,6 @@ app.delete("/api/recycledTransactions/:id", async (req, res) => {
         res.status(500).json({ message: "Error deleting recycled transaction" });
     }
 });
-
 
 
 // Data APIs
@@ -1348,5 +1407,122 @@ app.delete("/api/quotations/:id", async (req, res) => {
         res.status(400).json({ error: "Failed to delete quotation", details: err });
     }
 });
+const meetingSchema = new mongoose.Schema({
+    date: { type: String, required: true }, // Format: YYYY-MM-DD
+    meetings: [
+        {
+            startTime: { type: String, required: true },
+            endTime: { type: String, required: true },
+            note: { type: String, required: true },
+        },
+    ],
+});
 
+const Meeting = mongoose.model('Meeting', meetingSchema);
 
+// Routes
+
+// Get meetings for a specific date
+app.get('/api/meetings/:date', async (req, res) => {
+    try {
+        const { date } = req.params;
+        const meeting = await Meeting.findOne({ date });
+        res.status(200).json(meeting || { date, meetings: [] });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching meetings', error });
+    }
+});
+
+// Add a meeting to a specific date
+app.post('/api/meetings', async (req, res) => {
+    try {
+        const { date, startTime, endTime, note } = req.body;
+
+        if (!date || !startTime || !endTime || !note) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        // Check for time conflicts
+        const existingMeetings = await Meeting.findOne({ date });
+        if (existingMeetings) {
+            const conflict = existingMeetings.meetings.some(
+                (m) =>
+                    (startTime >= m.startTime && startTime < m.endTime) ||
+                    (endTime > m.startTime && endTime <= m.endTime)
+            );
+            if (conflict) {
+                return res
+                    .status(400)
+                    .json({ message: 'Time slot is already occupied' });
+            }
+        }
+
+        const updatedMeeting = await Meeting.findOneAndUpdate(
+            { date },
+            { $push: { meetings: { startTime, endTime, note } } },
+            { new: true, upsert: true }
+        );
+
+        res.status(201).json(updatedMeeting);
+    } catch (error) {
+        res.status(500).json({ message: 'Error adding meeting', error });
+    }
+});
+
+// API Endpoint to Edit a Meeting for a specific date
+app.put('/api/meetings/:date/:index', async (req, res) => {
+    try {
+        const { date, index } = req.params;
+        const { startTime, endTime, note } = req.body;
+
+        if (!startTime || !endTime || !note) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        const meeting = await Meeting.findOne({ date });
+        if (!meeting || !meeting.meetings[index]) {
+            return res.status(404).json({ message: 'Meeting not found' });
+        }
+
+        // Check for time conflicts after updating
+        const conflict = meeting.meetings.some((m, i) => {
+            if (i !== parseInt(index)) {
+                return (
+                    (startTime >= m.startTime && startTime < m.endTime) ||
+                    (endTime > m.startTime && endTime <= m.endTime)
+                );
+            }
+            return false;
+        });
+
+        if (conflict) {
+            return res.status(400).json({ message: 'Time slot is already occupied' });
+        }
+
+        meeting.meetings[index] = { startTime, endTime, note };
+        await meeting.save();
+
+        res.status(200).json(meeting);
+    } catch (error) {
+        res.status(500).json({ message: 'Error editing meeting', error });
+    }
+});
+
+// API Endpoint to Delete a Meeting for a specific date
+app.delete('/api/meetings/:date/:index', async (req, res) => {
+    try {
+        const { date, index } = req.params;
+
+        const meeting = await Meeting.findOne({ date });
+        if (!meeting || !meeting.meetings[index]) {
+            return res.status(404).json({ message: 'Meeting not found' });
+        }
+
+        meeting.meetings.splice(index, 1); // Remove the meeting at the specified index
+        await meeting.save();
+
+        res.status(200).json(meeting);
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting meeting', error });
+    }
+});
