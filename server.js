@@ -308,240 +308,184 @@ app.post('/api/top-deals', async (req, res) => {
     }
 });
 
-// Define the Transaction Schema (For Leads)
-const transactionSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    amount: { type: Number, required: true },
-    owner: { type: String, required: true },
-    stage: { type: String, required: true },
-    scheduledMeeting: { type: Date, default: null }  // New field for scheduled date/time
-});
-
-// API endpoint to fetch all transactions
-app.get('/api/transactions', async (req, res) => {
+// Deal Schema
+const dealSchema = new mongoose.Schema({
+    name: String,
+    leadName: String,
+    owner: String,
+    stage: {
+      type: String,
+      enum: ["Lead", "Contacted", "Proposal", "Qualified"],
+      default: "Lead"
+    },
+    amount: Number,
+    scheduledMeeting: Date
+  });
+  
+  const Deal = mongoose.model("Deal", dealSchema);
+  
+  // GET all transactions
+  app.get("/api/transactions", async (req, res) => {
     try {
-      // Fetch deals (transactions) from the database, including the scheduledMeeting field
-      const deals = await Transaction.find(); // This fetches all deals with all fields, including 'scheduledMeeting'
-      
-      // Send the deals as a response to the client
+      const deals = await Deal.find();
       res.json(deals);
     } catch (error) {
-      console.error('Error fetching deals:', error);
-      res.status(500).json({ message: 'Server error' });
+      res.status(500).json({ message: "Error fetching transactions", error });
     }
   });
-
-
-// Schedule a meeting for a transaction (Lead)
-app.post("/api/transactions/scheduleMeeting/:id", async (req, res) => {
-    const { id } = req.params;
-    const { meetingDate } = req.body; // You could also add other meeting details here
-
+  
+  // POST - Add a new lead to transactions
+  app.post("/api/transactions", async (req, res) => {
     try {
-        const transaction = await Transaction.findById(id);
-        if (!transaction) {
-            return res.status(404).json({ message: "Transaction not found" });
-        }
-
-        // Update the meetingScheduled field with the provided date
-        transaction.meetingScheduled = new Date(meetingDate);
-        await transaction.save();
-        res.json(transaction);
+      const { name, leadName, owner, stage, amount, scheduledMeeting } = req.body;
+      const newDeal = new Deal({ name, leadName, owner, stage, amount, scheduledMeeting });
+      await newDeal.save();
+      res.status(201).json(newDeal);
     } catch (error) {
-        console.error("Error scheduling meeting:", error);
-        res.status(500).json({ message: "Error scheduling meeting" });
+      res.status(400).json({ message: "Error adding lead", error });
     }
-});
-
-// Route to schedule a meeting for a transaction (Lead or Proposal)
-// In your server.js or app.js, add the route to handle the scheduling:
-
-// Backend endpoint for scheduling a meeting
-app.put('/api/transactions/schedule/:dealId', async (req, res) => {
-    const { dealId } = req.params;
-    const { scheduledMeeting } = req.body; // Date passed from frontend
-    
-    if (!scheduledMeeting) {
-      return res.status(400).json({ message: 'Scheduled date and time is required' });
-    }
+  });
   
+  // PUT - Update the stage of a deal
+  app.put("/api/transactions/:id", async (req, res) => {
     try {
-      const transaction = await Transaction.findByIdAndUpdate(dealId, {
-        scheduledMeeting: new Date(scheduledMeeting), // Convert to Date object
-      }, { new: true });
+      const { stage } = req.body;
   
-      if (!transaction) {
-        return res.status(404).json({ message: 'Deal not found' });
+      // Validate stage transitions
+      const validStages = ["Lead", "Contacted", "Proposal", "Qualified"];
+      if (!validStages.includes(stage)) {
+        return res.status(400).json({ message: "Invalid stage transition" });
       }
   
-      res.json({ transaction });
+      const deal = await Deal.findById(req.params.id);
+      if (!deal) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+  
+      // Enforce "Lead" can only go to "Contacted"
+      if (deal.stage === "Lead" && stage !== "Contacted") {
+        return res.status(400).json({ message: "Leads can only move to Contacted" });
+      }
+  
+      deal.stage = stage;
+      await deal.save();
+      res.json(deal);
     } catch (error) {
-      console.error('Error scheduling meeting:', error);
-      res.status(500).json({ message: 'Error scheduling meeting' });
+      res.status(500).json({ message: "Error updating transaction", error });
     }
   });
   
-
-
-// Define the Recycled Transaction Schema (Archived Leads)
-const recycledTransactionSchema = new mongoose.Schema({
-    name: String,
-    amount: Number,
-    owner: String,
-    stage: String,
+  // DELETE - Remove a deal from transactions
+  app.delete("/api/transactions/:id", async (req, res) => {
+    try {
+      const deletedDeal = await Deal.findByIdAndDelete(req.params.id);
+      if (!deletedDeal) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+      res.json({ message: "Transaction deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting transaction", error });
+    }
+  });
+  
+  // PUT - Schedule a meeting for a deal
+  app.put("/api/transactions/schedule/:id", async (req, res) => {
+    try {
+      const { scheduledMeeting } = req.body;
+      const deal = await Deal.findById(req.params.id);
+  
+      if (!deal) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+  
+      deal.scheduledMeeting = new Date(scheduledMeeting);
+      await deal.save();
+      res.json({ message: "Meeting scheduled successfully", deal });
+    } catch (error) {
+      res.status(500).json({ message: "Error scheduling meeting", error });
+    }
+  });
+  
+const meetingSchema = new mongoose.Schema({
+    date: { type: String, required: true }, // Format: YYYY-MM-DD
+    meetings: [
+        {
+            startTime: { type: String, required: true },
+            endTime: { type: String, required: true },
+            note: { type: String, required: true },
+        },
+    ],
 });
 
-// Models for Transactions (Leads) and Recycled Transactions (Archived)
-const Transaction = mongoose.model("Transaction", transactionSchema);
-const RecycledTransaction = mongoose.model("RecycledTransaction", recycledTransactionSchema);
+const Meeting = mongoose.model('Meeting', meetingSchema);
 
-// API Routes
+// Routes
 
-// Get all transactions (Leads)
-app.get("/api/transactions", async (req, res) => {
+// Get meetings for a specific date
+app.get('/api/meetings/:date', async (req, res) => {
     try {
-        const transactions = await Transaction.find();
-        res.json(transactions);
+        const { date } = req.params;
+        const meeting = await Meeting.findOne({ date });
+        res.status(200).json(meeting || { date, meetings: [] });
     } catch (error) {
-        console.error("Error fetching transactions:", error);
-        res.status(500).json({ message: "Error fetching transactions" });
+        res.status(500).json({ message: 'Error fetching meetings', error });
     }
 });
 
-// Create a new transaction (Lead) - prevents duplicate leads (by name and owner)
-app.post("/api/transactions", async (req, res) => {
-    const { name, amount, owner, stage } = req.body;
-
+// Add a meeting to a specific date
+app.post('/api/meetings', async (req, res) => {
     try {
-        // Check if a transaction with the same name and owner already exists
-        const duplicate = await Transaction.findOne({ name, owner });
-        if (duplicate) {
-            return res.status(400).json({ message: "Duplicate lead exists" });
+        const { date, startTime, endTime, note } = req.body;
+
+        if (!date || !startTime || !endTime || !note) {
+            return res.status(400).json({ message: 'All fields are required' });
         }
 
-        // Create and save the new transaction (lead)
-        const newTransaction = new Transaction({ name, amount, owner, stage });
-        await newTransaction.save();
-        res.status(201).json(newTransaction);
+        // Check for time conflicts
+        const existingMeetings = await Meeting.findOne({ date });
+        if (existingMeetings) {
+            const conflict = existingMeetings.meetings.some(
+                (m) =>
+                    (startTime >= m.startTime && startTime < m.endTime) ||
+                    (endTime > m.startTime && endTime <= m.endTime)
+            );
+            if (conflict) {
+                return res
+                    .status(400)
+                    .json({ message: 'Time slot is already occupied' });
+            }
+        }
+
+        const updatedMeeting = await Meeting.findOneAndUpdate(
+            { date },
+            { $push: { meetings: { startTime, endTime, note } } },
+            { new: true, upsert: true }
+        );
+
+        res.status(201).json(updatedMeeting);
     } catch (error) {
-        console.error("Error creating transaction:", error);
-        res.status(400).json({ message: "Error creating transaction" });
+        res.status(500).json({ message: 'Error adding meeting', error });
     }
 });
 
-// Update the stage of a transaction (Lead) - prevents stage reverting to earlier states
-app.put("/api/transactions/:id", async (req, res) => {
-    const { id } = req.params;
-    const { stage, amount } = req.body;
-
+// Delete a meeting
+app.delete('/api/meetings/:date/:index', async (req, res) => {
     try {
-        // Get the current transaction to check the stage before updating
-        const transaction = await Transaction.findById(id);
-        if (!transaction) {
-            return res.status(404).json({ message: "Transaction not found" });
+        const { date, index } = req.params;
+
+        const meeting = await Meeting.findOne({ date });
+        if (!meeting) {
+            return res.status(404).json({ message: 'Meeting not found' });
         }
 
-        const validStages = ["Lead", "Contacted", "Proposal", "Qualified"];
-        const currentStageIndex = validStages.indexOf(transaction.stage);
-        const nextStageIndex = validStages.indexOf(stage);
+        meeting.meetings.splice(index, 1);
+        await meeting.save();
 
-        // If trying to move backward or invalid stage, deny the update
-        if (nextStageIndex <= currentStageIndex) {
-            return res.status(400).json({ message: "Stage cannot be reverted" });
-        }
-
-        // Update the transaction
-        transaction.stage = stage;
-        if (amount) {
-            transaction.amount = amount;
-        }
-        await transaction.save();
-        res.json(transaction);
+        res.status(200).json(meeting);
     } catch (error) {
-        console.error("Error updating transaction:", error);
-        res.status(500).json({ message: "Error updating transaction" });
+        res.status(500).json({ message: 'Error deleting meeting', error });
     }
 });
-
-// Delete a transaction (Lead)
-app.delete("/api/transactions/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const transaction = await Transaction.findByIdAndDelete(id);
-        if (!transaction) {
-            return res.status(404).json({ message: "Transaction not found" });
-        }
-        res.json({ message: "Transaction deleted successfully" });
-    } catch (error) {
-        console.error("Error deleting transaction:", error);
-        res.status(500).json({ message: "Error deleting transaction" });
-    }
-});
-
-// Archive a transaction (move it to recycled)
-app.post("/api/transactions/archive/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const transaction = await Transaction.findByIdAndDelete(id);
-        if (!transaction) {
-            return res.status(404).json({ message: "Transaction not found" });
-        }
-
-        // Create a recycled transaction
-        const recycledTransaction = new RecycledTransaction(transaction.toObject());
-        await recycledTransaction.save();
-        res.json(recycledTransaction);
-    } catch (error) {
-        console.error("Error archiving transaction:", error);
-        res.status(500).json({ message: "Error archiving transaction" });
-    }
-});
-
-// Get all recycled transactions (Archived leads)
-app.get("/api/recycledTransactions", async (req, res) => {
-    try {
-        const recycledTransactions = await RecycledTransaction.find();
-        res.json(recycledTransactions);
-    } catch (error) {
-        console.error("Error fetching recycled transactions:", error);
-        res.status(500).json({ message: "Error fetching recycled transactions" });
-    }
-});
-
-// Restore a recycled transaction back to active transactions
-app.post("/api/recycledTransactions/restore/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const recycledTransaction = await RecycledTransaction.findByIdAndDelete(id);
-        if (!recycledTransaction) {
-            return res.status(404).json({ message: "Recycled transaction not found" });
-        }
-
-        const restoredTransaction = new Transaction(recycledTransaction.toObject());
-        await restoredTransaction.save();
-        res.json(restoredTransaction);
-    } catch (error) {
-        console.error("Error restoring transaction:", error);
-        res.status(500).json({ message: "Error restoring transaction" });
-    }
-});
-
-// Delete a recycled transaction (permanently)
-app.delete("/api/recycledTransactions/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const recycledTransaction = await RecycledTransaction.findByIdAndDelete(id);
-        if (!recycledTransaction) {
-            return res.status(404).json({ message: "Recycled transaction not found" });
-        }
-        res.json({ message: "Recycled transaction deleted successfully" });
-    } catch (error) {
-        console.error("Error deleting recycled transaction:", error);
-        res.status(500).json({ message: "Error deleting recycled transaction" });
-    }
-});
-
-
 
 // Data APIs
 app.post('/api/store', async (req, res) => {
