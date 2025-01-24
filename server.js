@@ -142,74 +142,6 @@ app.delete('/api/projects/:id', async (req, res) => {
     }
 });
 
-
-// Define the schema for project details
-const projectDetailsSchema = new mongoose.Schema({
-    id: { type: String, required: true },
-    name: { type: String, required: true },
-    dueDate: { type: String, required: true },
-    team: { type: [String] },
-    status: { type: String, required: true, enum: ['Open', 'In Progress', 'To Do', 'Completed'] },
-});
-
-// Create the model
-const ProjectDetails = mongoose.model('ProjectDetails', projectDetailsSchema);
-
-// POST route to handle project details creation
-// POST route to handle project details creation or update
-app.post('/api/projectsDetails', async (req, res) => {
-    const { id, name, dueDate, team, status } = req.body;
-
-    // Validate input
-    if (!id || !name || !dueDate || !status) {
-        return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    try {
-        // Check if project already exists
-        let existingProject = await ProjectDetails.findOne({ id });
-
-        if (existingProject) {
-            // If project exists, update its details
-            existingProject.dueDate = dueDate;
-            existingProject.team = team;
-            existingProject.status = status;
-
-            const updatedProject = await existingProject.save();
-            return res.status(200).json(updatedProject); // Return the updated project
-        } else {
-            // If project doesn't exist, create a new project
-            const newProject = new ProjectDetails({
-                id,
-                name,
-                dueDate,
-                team,
-                status,
-            });
-
-            const savedProject = await newProject.save();
-            return res.status(201).json(savedProject); // Return the newly created project
-        }
-    } catch (error) {
-        console.error('Error saving or updating project:', error);
-        res.status(500).json({ message: 'Internal Server Error' });
-    }
-});
-
-// GET route to fetch project details by ID
-// Ensure this route is set up in your server.js
-app.get('/api/projectsDetails', async (req, res) => {
-    try {
-        const projects = await ProjectDetails.find();  // This should return an array of projects
-        res.status(200).json(projects); // Send the array of projects as response
-    } catch (err) {
-        console.error("Error fetching project details:", err);
-        res.status(500).json({ message: 'Error fetching project details' });
-    }
-});
-
-
-
 // Define a Schema for the Revenue Data
 const revenueSchema = new mongoose.Schema({
     name: String,
@@ -308,184 +240,168 @@ app.post('/api/top-deals', async (req, res) => {
     }
 });
 
-// Deal Schema
+// Schemas
 const dealSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    amount: { type: Number, required: true },
+    owner: { type: String, required: true },
+    stage: { type: String, required: true },
+});
+
+const recycledDealSchema = new mongoose.Schema({
     name: String,
-    leadName: String,
-    owner: String,
-    stage: {
-      type: String,
-      enum: ["Lead", "Contacted", "Proposal", "Qualified"],
-      default: "Lead"
-    },
     amount: Number,
-    scheduledMeeting: Date
-  });
-  
-  const Deal = mongoose.model("Deal", dealSchema);
-  
-  // GET all transactions
-  app.get("/api/transactions", async (req, res) => {
-    try {
-      const deals = await Deal.find();
-      res.json(deals);
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching transactions", error });
-    }
-  });
-  
-  // POST - Add a new lead to transactions
-  app.post("/api/transactions", async (req, res) => {
-    try {
-      const { name, leadName, owner, stage, amount, scheduledMeeting } = req.body;
-      const newDeal = new Deal({ name, leadName, owner, stage, amount, scheduledMeeting });
-      await newDeal.save();
-      res.status(201).json(newDeal);
-    } catch (error) {
-      res.status(400).json({ message: "Error adding lead", error });
-    }
-  });
-  
-  // PUT - Update the stage of a deal
-  app.put("/api/transactions/:id", async (req, res) => {
-    try {
-      const { stage } = req.body;
-  
-      // Validate stage transitions
-      const validStages = ["Lead", "Contacted", "Proposal", "Qualified"];
-      if (!validStages.includes(stage)) {
-        return res.status(400).json({ message: "Invalid stage transition" });
-      }
-  
-      const deal = await Deal.findById(req.params.id);
-      if (!deal) {
-        return res.status(404).json({ message: "Transaction not found" });
-      }
-  
-      // Enforce "Lead" can only go to "Contacted"
-      if (deal.stage === "Lead" && stage !== "Contacted") {
-        return res.status(400).json({ message: "Leads can only move to Contacted" });
-      }
-  
-      deal.stage = stage;
-      await deal.save();
-      res.json(deal);
-    } catch (error) {
-      res.status(500).json({ message: "Error updating transaction", error });
-    }
-  });
-  
-  // DELETE - Remove a deal from transactions
-  app.delete("/api/transactions/:id", async (req, res) => {
-    try {
-      const deletedDeal = await Deal.findByIdAndDelete(req.params.id);
-      if (!deletedDeal) {
-        return res.status(404).json({ message: "Transaction not found" });
-      }
-      res.json({ message: "Transaction deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Error deleting transaction", error });
-    }
-  });
-  
-  // PUT - Schedule a meeting for a deal
-  app.put("/api/transactions/schedule/:id", async (req, res) => {
-    try {
-      const { scheduledMeeting } = req.body;
-      const deal = await Deal.findById(req.params.id);
-  
-      if (!deal) {
-        return res.status(404).json({ message: "Transaction not found" });
-      }
-  
-      deal.scheduledMeeting = new Date(scheduledMeeting);
-      await deal.save();
-      res.json({ message: "Meeting scheduled successfully", deal });
-    } catch (error) {
-      res.status(500).json({ message: "Error scheduling meeting", error });
-    }
-  });
-  
-const meetingSchema = new mongoose.Schema({
-    date: { type: String, required: true }, // Format: YYYY-MM-DD
-    meetings: [
-        {
-            startTime: { type: String, required: true },
-            endTime: { type: String, required: true },
-            note: { type: String, required: true },
-        },
-    ],
+    owner: String,
+    stage: String,
 });
 
-const Meeting = mongoose.model('Meeting', meetingSchema);
+// Models
+const Deal = mongoose.model("Deal", dealSchema);
+const RecycledDeal = mongoose.model("RecycledDeal", recycledDealSchema);
 
-// Routes
+// API Routes
 
-// Get meetings for a specific date
-app.get('/api/meetings/:date', async (req, res) => {
+// Get all deals
+app.get("/api/deals", async (req, res) => {
     try {
-        const { date } = req.params;
-        const meeting = await Meeting.findOne({ date });
-        res.status(200).json(meeting || { date, meetings: [] });
+        const deals = await Deal.find();
+        res.json(deals);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching meetings', error });
+        res.status(500).json({ message: "Error fetching deals" });
     }
 });
 
-// Add a meeting to a specific date
-app.post('/api/meetings', async (req, res) => {
+// Create a new deal
+app.post("/api/deals", async (req, res) => {
+    const { name, amount, owner, stage } = req.body;
     try {
-        const { date, startTime, endTime, note } = req.body;
+        const newDeal = new Deal({ name, amount, owner, stage });
+        await newDeal.save();
+        res.status(201).json(newDeal);
+    } catch (error) {
+        res.status(400).json({ message: "Error creating deal" });
+    }
+});
 
-        if (!date || !startTime || !endTime || !note) {
-            return res.status(400).json({ message: 'All fields are required' });
-        }
+// Edit a deal (Update name, owner, and amount)
+app.put("/api/deals/edit/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name, owner, amount } = req.body;
 
-        // Check for time conflicts
-        const existingMeetings = await Meeting.findOne({ date });
-        if (existingMeetings) {
-            const conflict = existingMeetings.meetings.some(
-                (m) =>
-                    (startTime >= m.startTime && startTime < m.endTime) ||
-                    (endTime > m.startTime && endTime <= m.endTime)
-            );
-            if (conflict) {
-                return res
-                    .status(400)
-                    .json({ message: 'Time slot is already occupied' });
-            }
-        }
-
-        const updatedMeeting = await Meeting.findOneAndUpdate(
-            { date },
-            { $push: { meetings: { startTime, endTime, note } } },
-            { new: true, upsert: true }
+    try {
+        const updatedDeal = await Deal.findByIdAndUpdate(
+            id,
+            { name, owner, amount },
+            { new: true } // Return the updated deal
         );
 
-        res.status(201).json(updatedMeeting);
-    } catch (error) {
-        res.status(500).json({ message: 'Error adding meeting', error });
-    }
-});
-
-// Delete a meeting
-app.delete('/api/meetings/:date/:index', async (req, res) => {
-    try {
-        const { date, index } = req.params;
-
-        const meeting = await Meeting.findOne({ date });
-        if (!meeting) {
-            return res.status(404).json({ message: 'Meeting not found' });
+        if (!updatedDeal) {
+            return res.status(404).json({ message: "Deal not found" });
         }
 
-        meeting.meetings.splice(index, 1);
-        await meeting.save();
-
-        res.status(200).json(meeting);
+        res.json(updatedDeal);
     } catch (error) {
-        res.status(500).json({ message: 'Error deleting meeting', error });
+        console.error("Error editing deal:", error);
+        res.status(500).json({ message: "Error editing deal" });
     }
 });
+
+
+// Update a transaction's stage (used for drag-and-drop)
+app.put("/api/transactions/:id", async (req, res) => {
+    const { id } = req.params;
+    const { stage, amount } = req.body;
+
+    try {
+        const updatedDeal = await Deal.findByIdAndUpdate(
+            id,
+            { stage, amount },
+            { new: true }
+        );
+
+        if (!updatedDeal) {
+            return res.status(404).json({ message: "Deal not found" });
+        }
+
+        res.json(updatedDeal);
+    } catch (error) {
+        console.error("Error updating deal:", error);
+        res.status(500).json({ message: "Error updating deal" });
+    }
+});
+
+// Delete a deal
+app.delete("/api/deals/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deal = await Deal.findByIdAndDelete(id);
+        if (!deal) {
+            return res.status(404).json({ message: "Deal not found" });
+        }
+        res.json({ message: "Deal deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Error deleting deal" });
+    }
+});
+
+// Archive a deal
+app.post("/api/deals/archive/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deal = await Deal.findByIdAndDelete(id);
+        if (!deal) return res.status(404).json({ message: "Deal not found" });
+
+        const recycledDeal = new RecycledDeal(deal.toObject());
+        await recycledDeal.save();
+        res.json(recycledDeal);
+    } catch (error) {
+        res.status(500).json({ message: "Error archiving deal" });
+    }
+});
+
+// Get all recycled deals
+app.get("/api/recycledDeals", async (req, res) => {
+    try {
+        const recycledDeals = await RecycledDeal.find();
+        res.json(recycledDeals);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching recycled deals" });
+    }
+});
+
+// Restore a recycled deal
+app.post("/api/recycledDeals/restore/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const recycledDeal = await RecycledDeal.findByIdAndDelete(id);
+        if (!recycledDeal)
+            return res.status(404).json({ message: "Recycled deal not found" });
+
+        const restoredDeal = new Deal(recycledDeal.toObject());
+        await restoredDeal.save();
+        res.json(restoredDeal);
+    } catch (error) {
+        res.status(500).json({ message: "Error restoring deal" });
+    }
+});
+
+// Delete a recycled deal
+app.delete("/api/recycledDeals/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const recycledDeal = await RecycledDeal.findByIdAndDelete(id);
+        if (!recycledDeal) {
+            return res.status(404).json({ message: "Recycled deal not found" });
+        }
+        res.json({ message: "Recycled deal deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Error deleting recycled deal" });
+    }
+});
+
+
+
+
 
 // Data APIs
 app.post('/api/store', async (req, res) => {
@@ -802,226 +718,6 @@ app.delete('/api/organizations/:id', async (req, res) => {
     }
 });
 
-
-const ContactSchema = new mongoose.Schema({
-    name: String,
-    email: String,
-    phone: String,
-    address: String,
-});
-const Contact = mongoose.model('Contact', ContactSchema);
-
-// Contact APIs
-app.get('/api/contacts', async (req, res) => {
-    try {
-        const contacts = await Contact.find();
-        res.status(200).json({ success: true, contacts });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error fetching contacts', error: err.message });
-    }
-});
-
-app.post('/api/contacts', async (req, res) => {
-    const { name, email, phone, address } = req.body;
-    if (!name || !email || !phone || !address) {
-        return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-    try {
-        const contact = new Contact({ name, email, phone, address });
-        await contact.save();
-        res.status(201).json({ success: true, message: 'Contact created successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error creating contact', error: err.message });
-    }
-});
-
-app.put('/api/contacts/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, email, phone, address } = req.body;
-    try {
-        const contact = await Contact.findByIdAndUpdate(id, { name, email, phone, address }, { new: true });
-        if (!contact) {
-            return res.status(404).json({ success: false, message: 'Contact not found' });
-        }
-        res.status(200).json({ success: true, message: 'Contact updated successfully', contact });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error updating contact', error: err.message });
-    }
-});
-
-app.delete('/api/contacts/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const contact = await Contact.findByIdAndDelete(id);
-        if (!contact) {
-            return res.status(404).json({ success: false, message: 'Contact not found' });
-        }
-        res.status(200).json({ success: true, message: 'Contact deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
-    }
-});
-
-
-const NewLeadSchema = new mongoose.Schema({
-    leadName: String,  // Add this field for the lead name
-    name: String,
-    email: String,
-    phone: String,
-    address: String,
-    dealStatus: String, // Add this field
-    message: String,
-});
-
-const NewLead = mongoose.model("NewLead", NewLeadSchema);
-
-
-app.get("/api/NewLeads", async (req, res) => {
-    try {
-        const leads = await NewLead.find();
-        res.status(200).json({ success: true, contacts: leads });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error fetching leads", error: err.message });
-    }
-});
-
-app.post("/api/NewLeads", async (req, res) => {
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
-
-    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-
-    try {
-        const newLead = new NewLead({ leadName, name, email, phone, address, dealStatus, message });
-        await newLead.save();
-        res.status(201).json({ success: true, message: "New lead created successfully" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error creating new lead", error: err.message });
-    }
-});
-
-
-
-// PUT Route to Update Deal Status
-app.put("/api/NewLeads/:id", async (req, res) => {
-    const { id } = req.params;
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
-
-    try {
-        const updatedLead = await NewLead.findByIdAndUpdate(
-            id,
-            { leadName, name, email, phone, address, dealStatus, message },
-            { new: true } // Return the updated document
-        );
-
-        if (!updatedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Lead updated successfully",
-            lead: updatedLead,
-        });
-    } catch (err) {
-        res.status(500).json({
-            success: false,
-            message: "Error updating lead",
-            error: err.message,
-        });
-    }
-});
-
-
-app.put("/api/NewLeads/edit/:id", async (req, res) => {
-    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
-    const { id } = req.params;
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
-
-    // Check for missing fields
-    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-
-    try {
-        // Update the lead in the database
-        const updatedLead = await NewLead.findByIdAndUpdate(
-            id,
-            { leadName, name, email, phone, address, dealStatus, message },
-            { new: true } // Return the updated lead document
-        );
-
-        // Handle case where the lead is not found
-        if (!updatedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        // Respond with success and the updated lead
-        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
-    } catch (error) {
-        // Handle server errors
-        res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
-    }
-});
-
-
-// Edit a lead
-app.put("/api/NewLeads/edit/:id", async (req, res) => {
-    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
-    const { id } = req.params;
-    const { name, email, phone, address, dealStatus, message } = req.body;
-
-    // Check for missing fields
-    if (!name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-
-    try {
-        // Update the lead in the database
-        const updatedLead = await NewLead.findByIdAndUpdate(
-            id,
-            { name, email, phone, address, dealStatus, message },
-            { new: true } // Return the updated lead document
-        );
-
-        // Handle case where the lead is not found
-        if (!updatedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        // Respond with success and the updated lead
-        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
-    } catch (error) {
-        // Handle server errors
-        res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
-    }
-});
-
-
-
-app.delete("/api/NewLeads/:id", async (req, res) => {
-    const { id } = req.params;
-
-    try {
-        const deletedLead = await NewLead.findByIdAndDelete(id);
-
-        if (!deletedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Lead deleted successfully",
-        });
-    } catch (err) {
-        res.status(500).json({
-            success: false,
-            message: "Error deleting lead",
-            error: err.message,
-        });
-    }
-});
 
 // Employee Schema definition
 const EmployeeSchema = new mongoose.Schema({
