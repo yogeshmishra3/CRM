@@ -938,6 +938,37 @@ app.get("/api/integrations/:id", async (req, res) => {
         res.status(500).json({ success: false, message: "Error fetching integration.", error: error.message });
     }
 });
+// Edit existing integration by ID
+app.put("/api/integrations/:id", async (req, res) => {
+    const { id } = req.params;
+    const { provider, services } = req.body;
+
+    // Validate the input
+    if (!provider || !services || services.length === 0) {
+        return res.status(400).json({ success: false, message: "Provider name and services are required." });
+    }
+
+    try {
+        // Find the integration by ID and update
+        const updatedIntegration = await Integration.findByIdAndUpdate(
+            id,
+            { provider, services },
+            { new: true }  // Return the updated document
+        );
+
+        if (!updatedIntegration) {
+            return res.status(404).json({ success: false, message: "Integration not found." });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Integration updated successfully!",
+            data: updatedIntegration
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error updating integration.", error: error.message });
+    }
+});
 
 // Delete integration
 app.delete("/api/integrations/:id", async (req, res) => {
@@ -1099,7 +1130,9 @@ module.exports = (req, res) => {
 
 
 
-const quotationSchema = new mongoose.Schema({
+// New Quotation Schema
+const newQuotationSchema = new mongoose.Schema({
+    dealName: String, // Storing deal name
     CompanyRequirement: String,
     quotationNo: String,
     date: String,
@@ -1113,62 +1146,63 @@ const quotationSchema = new mongoose.Schema({
     ],
 });
 
-const Quotation = mongoose.model("Quotation", quotationSchema);
+// New Quotation Model
+const NewQuotation = mongoose.model("NewQuotation", newQuotationSchema);
 
 // Routes
 // Create a new quotation
-app.post("/api/quotations", async (req, res) => {
+app.post("/api/newquotations", async (req, res) => {
     try {
-        const newQuotation = new Quotation(req.body);
+        const newQuotation = new NewQuotation(req.body); // dealName and other fields will be handled
         const savedQuotation = await newQuotation.save();
         res.status(201).json(savedQuotation);
     } catch (err) {
-        res.status(400).json({ error: "Failed to create quotation", details: err });
+        res.status(400).json({ error: "Failed to create new quotation", details: err });
     }
 });
 
 // Get all quotations
-app.get("/api/quotations", async (req, res) => {
+app.get("/api/newquotations", async (req, res) => {
     try {
-        const quotations = await Quotation.find();
+        const quotations = await NewQuotation.find(); // dealName is part of the schema
         res.status(200).json(quotations);
     } catch (err) {
-        res.status(400).json({ error: "Failed to fetch quotations", details: err });
+        res.status(400).json({ error: "Failed to fetch new quotations", details: err });
     }
 });
 
 // Get a single quotation by ID
-app.get("/api/quotations/:id", async (req, res) => {
+app.get("/api/newquotations/:id", async (req, res) => {
     try {
-        const quotation = await Quotation.findById(req.params.id);
-        if (!quotation) return res.status(404).json({ error: "Quotation not found" });
+        const quotation = await NewQuotation.findById(req.params.id);
+        if (!quotation) return res.status(404).json({ error: "New quotation not found" });
         res.status(200).json(quotation);
     } catch (err) {
-        res.status(400).json({ error: "Failed to fetch quotation", details: err });
+        res.status(400).json({ error: "Failed to fetch new quotation", details: err });
     }
 });
 
 // Update a quotation
-app.put("/api/quotations/:id", async (req, res) => {
+app.put("/api/newquotations/:id", async (req, res) => {
     try {
-        const updatedQuotation = await Quotation.findByIdAndUpdate(req.params.id, req.body, {
+        const updatedQuotation = await NewQuotation.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
         });
-        if (!updatedQuotation) return res.status(404).json({ error: "Quotation not found" });
+        if (!updatedQuotation) return res.status(404).json({ error: "New quotation not found" });
         res.status(200).json(updatedQuotation);
     } catch (err) {
-        res.status(400).json({ error: "Failed to update quotation", details: err });
+        res.status(400).json({ error: "Failed to update new quotation", details: err });
     }
 });
 
 // Delete a quotation
-app.delete("/api/quotations/:id", async (req, res) => {
+app.delete("/api/newquotations/:id", async (req, res) => {
     try {
-        const deletedQuotation = await Quotation.findByIdAndDelete(req.params.id);
-        if (!deletedQuotation) return res.status(404).json({ error: "Quotation not found" });
-        res.status(200).json({ message: "Quotation deleted successfully" });
+        const deletedQuotation = await NewQuotation.findByIdAndDelete(req.params.id);
+        if (!deletedQuotation) return res.status(404).json({ error: "New quotation not found" });
+        res.status(200).json({ message: "New quotation deleted successfully" });
     } catch (err) {
-        res.status(400).json({ error: "Failed to delete quotation", details: err });
+        res.status(400).json({ error: "Failed to delete new quotation", details: err });
     }
 });
 
@@ -1212,6 +1246,7 @@ app.post("/api/transactions", async (req, res) => {
 });
 
 // PUT - Update the stage of a deal
+// PUT - Update the stage of a deal
 app.put("/api/transactions/:id", async (req, res) => {
     try {
         const { stage } = req.body;
@@ -1232,6 +1267,18 @@ app.put("/api/transactions/:id", async (req, res) => {
             return res.status(400).json({ message: "Leads can only move to Contacted" });
         }
 
+        // If moving to "Proposal" stage, remove any matching deals in "Contacted"
+        if (stage === "Proposal") {
+            // Find deals in "Contacted" with the same name
+            const contactedDeals = await Deal.find({ stage: "Contacted", name: deal.name });
+
+            // Remove those deals
+            for (const contactedDeal of contactedDeals) {
+                await Deal.findByIdAndDelete(contactedDeal._id);
+            }
+        }
+
+        // Update the deal stage
         deal.stage = stage;
         await deal.save();
         res.json(deal);
@@ -1239,6 +1286,7 @@ app.put("/api/transactions/:id", async (req, res) => {
         res.status(500).json({ message: "Error updating transaction", error });
     }
 });
+
 
 // DELETE - Remove a deal from transactions
 app.delete("/api/transactions/:id", async (req, res) => {
@@ -1272,6 +1320,7 @@ app.put("/api/transactions/schedule/:id", async (req, res) => {
 });
 
 
+// Define the schema for a meeting
 const meetingSchema = new mongoose.Schema({
     date: { type: String, required: true }, // Format: YYYY-MM-DD
     meetings: [
@@ -1279,10 +1328,12 @@ const meetingSchema = new mongoose.Schema({
             startTime: { type: String, required: true },
             endTime: { type: String, required: true },
             note: { type: String, required: true },
+            keywords: { type: [String], default: [] }, // Array of keywords
         },
     ],
 });
 
+// Create a model from the schema
 const Meeting = mongoose.model('Meeting', meetingSchema);
 
 // Routes
@@ -1301,7 +1352,7 @@ app.get('/api/meetings/:date', async (req, res) => {
 // Add a meeting to a specific date
 app.post('/api/meetings', async (req, res) => {
     try {
-        const { date, startTime, endTime, note } = req.body;
+        const { date, startTime, endTime, note, keywords } = req.body;
 
         if (!date || !startTime || !endTime || !note) {
             return res.status(400).json({ message: 'All fields are required' });
@@ -1324,7 +1375,7 @@ app.post('/api/meetings', async (req, res) => {
 
         const updatedMeeting = await Meeting.findOneAndUpdate(
             { date },
-            { $push: { meetings: { startTime, endTime, note } } },
+            { $push: { meetings: { startTime, endTime, note, keywords } } },
             { new: true, upsert: true }
         );
 
@@ -1338,7 +1389,7 @@ app.post('/api/meetings', async (req, res) => {
 app.put('/api/meetings/:date/:index', async (req, res) => {
     try {
         const { date, index } = req.params;
-        const { startTime, endTime, note } = req.body;
+        const { startTime, endTime, note, keywords } = req.body;
 
         if (!startTime || !endTime || !note) {
             return res.status(400).json({ message: 'All fields are required' });
@@ -1364,7 +1415,7 @@ app.put('/api/meetings/:date/:index', async (req, res) => {
             return res.status(400).json({ message: 'Time slot is already occupied' });
         }
 
-        meeting.meetings[index] = { startTime, endTime, note };
+        meeting.meetings[index] = { startTime, endTime, note, keywords };
         await meeting.save();
 
         res.status(200).json(meeting);
