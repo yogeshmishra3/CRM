@@ -1328,7 +1328,7 @@ const meetingSchema = new mongoose.Schema({
             startTime: { type: String, required: true },
             endTime: { type: String, required: true },
             note: { type: String, required: true },
-            keywords: { type: [String], default: [] }, // Array of keywords
+            keyword: { type: [String], default: [] }, // Array of keyword
         },
     ],
 });
@@ -1352,7 +1352,7 @@ app.get('/api/meetings/:date', async (req, res) => {
 // Add a meeting to a specific date
 app.post('/api/meetings', async (req, res) => {
     try {
-        const { date, startTime, endTime, note, keywords } = req.body;
+        const { date, startTime, endTime, note, keyword } = req.body;
 
         if (!date || !startTime || !endTime || !note) {
             return res.status(400).json({ message: 'All fields are required' });
@@ -1375,7 +1375,7 @@ app.post('/api/meetings', async (req, res) => {
 
         const updatedMeeting = await Meeting.findOneAndUpdate(
             { date },
-            { $push: { meetings: { startTime, endTime, note, keywords } } },
+            { $push: { meetings: { startTime, endTime, note, keyword } } },
             { new: true, upsert: true }
         );
 
@@ -1389,7 +1389,7 @@ app.post('/api/meetings', async (req, res) => {
 app.put('/api/meetings/:date/:index', async (req, res) => {
     try {
         const { date, index } = req.params;
-        const { startTime, endTime, note, keywords } = req.body;
+        const { startTime, endTime, note, keyword } = req.body;
 
         if (!startTime || !endTime || !note) {
             return res.status(400).json({ message: 'All fields are required' });
@@ -1415,7 +1415,7 @@ app.put('/api/meetings/:date/:index', async (req, res) => {
             return res.status(400).json({ message: 'Time slot is already occupied' });
         }
 
-        meeting.meetings[index] = { startTime, endTime, note, keywords };
+        meeting.meetings[index] = { startTime, endTime, note, keyword };
         await meeting.save();
 
         res.status(200).json(meeting);
