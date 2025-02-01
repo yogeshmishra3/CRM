@@ -2004,3 +2004,76 @@ app.put("/api/complaints/:id", async (req, res) => {
         res.status(500).json({ message: "❌ Error updating complaint", error });
     }
 });
+
+// Define Finance Details Schema
+const financeDetailsSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    dealName: { type: String, required: true },
+    clientName: { type: String, required: true },
+    dueDate: { type: String },
+    advancePayment: { type: Number, default: 0 },
+    midPayment: { type: Number, default: 0 },
+    finalPayment: { type: Number, default: 0 },
+    amount: { type: Number, required: true },
+    balance: { type: Number, default: 0 }
+});
+
+// Create FinanceDetails model
+const FinanceDetails = mongoose.model('FinanceDetails', financeDetailsSchema);
+
+// POST route to create or update finance details
+app.post('/api/financeDetails', async (req, res) => {
+    const { id, dealName, clientName, dueDate, advancePayment, midPayment, finalPayment, amount } = req.body;
+
+    if (!id || !dealName || !clientName || amount == null) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    try {
+        let financeEntry = await FinanceDetails.findOne({ id });
+
+        if (financeEntry) {
+            // Update only the fields that are provided
+            financeEntry.dueDate = dueDate || financeEntry.dueDate;
+            financeEntry.advancePayment = advancePayment !== undefined ? advancePayment : financeEntry.advancePayment;
+            financeEntry.midPayment = midPayment !== undefined ? midPayment : financeEntry.midPayment;
+            financeEntry.finalPayment = finalPayment !== undefined ? finalPayment : financeEntry.finalPayment;
+            financeEntry.amount = amount;
+            financeEntry.balance = amount - (financeEntry.advancePayment + financeEntry.midPayment + financeEntry.finalPayment);
+
+            const updatedFinance = await financeEntry.save();
+            return res.status(200).json(updatedFinance);
+        } else {
+            // Create a new entry if none exists
+            const newFinance = new FinanceDetails({
+                id,
+                dealName,
+                clientName,
+                dueDate,
+                advancePayment: advancePayment || 0,
+                midPayment: midPayment || 0,
+                finalPayment: finalPayment || 0,
+                amount,
+                balance: amount - ((advancePayment || 0) + (midPayment || 0) + (finalPayment || 0))
+            });
+
+            const savedFinance = await newFinance.save();
+            return res.status(201).json(savedFinance);
+        }
+    } catch (error) {
+        console.error('Error saving or updating finance details:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
+// GET route to fetch all finance details
+app.get('/api/financeDetails', async (req, res) => {
+    try {
+        const financeData = await FinanceDetails.find();
+        res.status(200).json(financeData);
+    } catch (err) {
+        console.error("Error fetching finance details:", err);
+        res.status(500).json({ message: 'Error fetching finance details' });
+    }
+});
