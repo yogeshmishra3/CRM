@@ -1470,13 +1470,13 @@ app.put("/api/dealmanagement/schedule/:id", async (req, res) => {
 // Function to delete duplicate deals based on matching dealName and clientName
 const deleteDuplicateDeals = async (transactionsData, quotationsData) => {
     // Extract dealName & clientName from quotations
-    const quotationMap = new Set(quotationsData.map(q => `${ q.dealName } - ${ q.clientName }`));
+    const quotationMap = new Set(quotationsData.map(q => `${q.dealName} - ${q.clientName}`));
 
     // Filter deals that need to be deleted (stage = "Contacted" OR "Lead")
     const dealsToDelete = transactionsData
         .filter(deal =>
             (deal.stage === "Contacted" || deal.stage === "Lead") &&
-            quotationMap.has(`${ deal.leadName } - ${ deal.name }`)
+            quotationMap.has(`${deal.leadName} - ${deal.name}`)
         )
         .map(deal => deal._id); // Extract only the IDs
 
@@ -1486,7 +1486,7 @@ const deleteDuplicateDeals = async (transactionsData, quotationsData) => {
     }
 
     try {
-        console.log(`Deleting ${ dealsToDelete.length } duplicate deals...`);
+        console.log(`Deleting ${dealsToDelete.length} duplicate deals...`);
 
         // Delete all matching deals in a single query
         await DealManagement.deleteMany({ _id: { $in: dealsToDelete } });
@@ -1917,5 +1917,90 @@ app.delete("/api/organizations/:id", async (req, res) => {
         res.json({ success: true, message: "Organization deleted successfully" });
     } catch (error) {
         res.status(400).json({ success: false, message: "Error deleting organization", error });
+    }
+});
+
+
+// **Complaint Schema**
+const ComplaintSchema = new mongoose.Schema(
+    {
+        fullName: { type: String, required: true },
+        phone: { type: String, required: true },
+        projectName: { type: String, required: true },
+        category: { type: String, required: true },
+        subject: { type: String, required: true },
+        email: { type: String, required: true },
+        preferredContact: { type: String, required: true },
+        complaintDescription: { type: String, required: true },
+        attachment: { type: String }, // Cloudinary URL
+    },
+    { timestamps: true }
+);
+
+const Complaint = mongoose.model("Complaint", ComplaintSchema);
+
+// **API to Submit a Complaint (URL from Cloudinary)**
+app.post("/api/complaints", async (req, res) => {
+    try {
+        const { fullName, phone, projectName, category, subject, email, preferredContact, complaintDescription, attachment } = req.body;
+
+        const newComplaint = new Complaint({
+            fullName,
+            phone,
+            projectName,
+            category,
+            subject,
+            email,
+            preferredContact,
+            complaintDescription,
+            attachment, // Cloudinary URL is received from the frontend
+        });
+
+        await newComplaint.save();
+        res.status(201).json({ message: "✅ Complaint submitted successfully", data: newComplaint });
+    } catch (error) {
+        res.status(500).json({ message: "❌ Error submitting complaint", error });
+    }
+});
+
+// **Fetch All Complaints**
+app.get("/api/complaints", async (req, res) => {
+    try {
+        const complaints = await Complaint.find();
+        res.status(200).json(complaints);
+    } catch (error) {
+        res.status(500).json({ message: "❌ Error fetching complaints", error });
+    }
+});
+// **Delete Complaint by ID**
+app.delete("/api/complaints/:id", async (req, res) => {
+    try {
+        const complaintId = req.params.id;
+        const complaint = await Complaint.findByIdAndDelete(complaintId);  // Find and delete the complaint by ID
+
+        if (!complaint) {
+            return res.status(404).json({ message: "❌ Complaint not found" });
+        }
+
+        res.status(200).json({ message: "✅ Complaint deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "❌ Error deleting complaint", error });
+    }
+});
+// **Edit (Update) Complaint by ID**
+app.put("/api/complaints/:id", async (req, res) => {
+    try {
+        const complaintId = req.params.id;
+        const updatedComplaintData = req.body;  // The updated data sent from the client
+
+        const complaint = await Complaint.findByIdAndUpdate(complaintId, updatedComplaintData, { new: true });
+
+        if (!complaint) {
+            return res.status(404).json({ message: "❌ Complaint not found" });
+        }
+
+        res.status(200).json({ message: "✅ Complaint updated successfully", complaint });
+    } catch (error) {
+        res.status(500).json({ message: "❌ Error updating complaint", error });
     }
 });
