@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+require('dotenv').config();
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -1937,8 +1939,38 @@ const ComplaintSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-const Complaint = mongoose.model("Complaint", ComplaintSchema);
+const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || "smtp.hostinger.com",      // Hostinger SMTP server
+    port: process.env.EMAIL_PORT ? Number(process.env.EMAIL_PORT) : 587, // Use 587 for TLS or 465 for SSL
+    secure: process.env.EMAIL_SECURE === "true",                // true for port 465, false for port 587
+    auth: {
+        user: process.env.EMAIL_USER || "your-hostinger-email@example.com",
+        pass: process.env.EMAIL_PASS || "your-email-password",
+    },
+});
 
+/**
+ * Async function to send a confirmation email.
+ * Returns a promise that resolves if the email is sent, or rejects on error.
+ */
+async function sendConfirmationEmail(toEmail, complaint) {
+    const mailOptions = {
+        from: process.env.EMAIL_USER || "your-hostinger-email@example.com",
+        to: toEmail,
+        subject: "Complaint Registered Successfully",
+        text: `Hello ${complaint.fullName},
+
+Your complaint regarding "${complaint.subject}" has been registered successfully.
+We will contact you soon.
+
+Thank you,
+Support Team`,
+    };
+
+    // Await the sendMail call and let errors propagate naturally.
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.messageId);
+}
 // **API to Submit a Complaint (URL from Cloudinary)**
 app.post("/api/complaints", async (req, res) => {
     try {
