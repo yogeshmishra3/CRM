@@ -2005,17 +2005,22 @@ app.post("/api/complaints", async (req, res) => {
     }
 });
 // **Fetch Complaint by ComplaintID**
+// Fetch Complaint Details by Complaint ID
 app.get("/api/complaints/:complaintID", async (req, res) => {
     try {
         const { complaintID } = req.params;
 
+        // Find the complaint by complaintID
         const complaint = await Complaint.findOne({ complaintID });
 
         if (!complaint) {
             return res.status(404).json({ message: "❌ Complaint not found" });
         }
 
-        res.status(200).json({ message: "✅ Complaint fetched successfully", complaint });
+        res.status(200).json({
+            message: "✅ Complaint fetched successfully",
+            complaint,
+        });
     } catch (error) {
         res.status(500).json({ message: "❌ Error fetching complaint", error });
     }
