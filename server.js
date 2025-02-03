@@ -778,7 +778,7 @@ app.delete("/api/NewLeads/:id", async (req, res) => {
     }
 });
 
-// Employee Schema definition
+// Employee Schema
 const EmployeeSchema = new mongoose.Schema({
     empId: { type: String, required: true, unique: true }, // Employee ID (Unique)
     name: { type: String, required: true },               // Employee's full name
@@ -798,7 +798,9 @@ const EmployeeSchema = new mongoose.Schema({
 // Employee Model
 const Employee = mongoose.model("Employee", EmployeeSchema);
 
-// Fetch all employees
+// Routes
+
+// Get all employees
 app.get("/api/employees", async (req, res) => {
     try {
         const employees = await Employee.find();
@@ -808,15 +810,30 @@ app.get("/api/employees", async (req, res) => {
     }
 });
 
-// Add a new employee
-app.post("/api/employees", async (req, res) => {
-    const { empId, name, email, phone, address, department, position, dateOfJoining, dateOfBirth, salary, manager, status, message } = req.body;
-
-    if (!empId || !name || !email || !phone || !address || !department || !position || !dateOfJoining || !salary) {
-        return res.status(400).json({ success: false, message: "All required fields must be filled!" });
-    }
-
+// Get a single employee by ID
+app.get("/api/employees/:id", async (req, res) => {
     try {
+        const employee = await Employee.findById(req.params.id);
+        if (!employee) {
+            return res.status(404).json({ success: false, message: "Employee not found" });
+        }
+        res.status(200).json({ success: true, employee });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error fetching employee", error: err.message });
+    }
+});
+
+// Add a new employee
+app.post('/api/employees', async (req, res) => {
+    try {
+        const { empId, name, email, phone, address, department, position, dateOfJoining, dateOfBirth, salary, manager, status, message } = req.body;
+
+        // Validate the input fields
+        if (!empId || !name || !email || !phone || !department || !position || !dateOfJoining || !salary) {
+            return res.status(400).json({ success: false, message: "All required fields must be provided" });
+        }
+
+        // Create a new employee
         const newEmployee = new Employee({
             empId,
             name,
@@ -830,44 +847,45 @@ app.post("/api/employees", async (req, res) => {
             salary,
             manager,
             status,
-            message,
+            message
         });
 
-        await newEmployee.save();
-        res.status(201).json({ success: true, message: "New employee added successfully!" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error adding employee", error: err.message });
+        // Save the employee to the database
+        const savedEmployee = await newEmployee.save();
+        return res.json({ success: true, employee: savedEmployee });
+    } catch (error) {
+        console.error("Error adding employee:", error);
+        return res.status(500).json({ success: false, message: "Failed to add employee" });
     }
 });
+
 
 // Update employee details
-app.put("/api/employees/:id", async (req, res) => {
-    const { id } = req.params;
-    const { name, email, phone, address, department, position, dateOfJoining, dateOfBirth, salary, manager, status, message } = req.body;
-
+app.put('/api/employees/:id', async (req, res) => {
+    console.log('Update request received:', req.body); // Log the incoming data
     try {
-        const updatedEmployee = await Employee.findByIdAndUpdate(
-            id,
-            { name, email, phone, address, department, position, dateOfJoining, dateOfBirth, salary, manager, status, message },
-            { new: true } // Return the updated document
-        );
+        const { id } = req.params;
+        const updatedData = req.body;
 
-        if (!updatedEmployee) {
-            return res.status(404).json({ success: false, message: "Employee not found" });
+        const updatedEmployee = await Employee.findByIdAndUpdate(id, updatedData, { new: true });
+        console.log('Updated employee:', updatedEmployee); // Log the updated data
+
+        if (updatedEmployee) {
+            return res.json({ success: true, employee: updatedEmployee });
+        } else {
+            return res.json({ success: false, message: "Employee not found" });
         }
-
-        res.status(200).json({ success: true, message: "Employee updated successfully", employee: updatedEmployee });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error updating employee", error: err.message });
+    } catch (error) {
+        console.error("Error updating employee:", error);
+        return res.json({ success: false, message: "Failed to update employee" });
     }
 });
+
 
 // Delete an employee
 app.delete("/api/employees/:id", async (req, res) => {
-    const { id } = req.params;
-
     try {
-        const deletedEmployee = await Employee.findByIdAndDelete(id);
+        const deletedEmployee = await Employee.findByIdAndDelete(req.params.id);
 
         if (!deletedEmployee) {
             return res.status(404).json({ success: false, message: "Employee not found" });
@@ -1153,13 +1171,25 @@ const NewQuotation = mongoose.model("NewQuotation", newQuotationSchema);
 // Create a new quotation
 app.post("/api/newquotations", async (req, res) => {
     try {
-        const newQuotation = new NewQuotation(req.body); // dealName and other fields will be handled
+        const { dealName } = req.body;
+
+        // Check if a deal with the same name exists in the Deal collection
+        const existingDeal = await Deal.findOne({ name: dealName });
+        if (existingDeal) {
+            // If a matching deal exists, delete it from the Deal collection
+            await Deal.findOneAndDelete({ name: dealName });
+            console.log(`Deleted deal with name: ${dealName} from Deal collection`);
+        }
+
+        // Proceed to create the new quotation
+        const newQuotation = new NewQuotation(req.body);
         const savedQuotation = await newQuotation.save();
         res.status(201).json(savedQuotation);
     } catch (err) {
         res.status(400).json({ error: "Failed to create new quotation", details: err });
     }
 });
+
 
 // Get all quotations
 app.get("/api/newquotations", async (req, res) => {
@@ -1862,6 +1892,8 @@ app.delete('/api/meetings/:date/:index', async (req, res) => {
         res.status(500).json({ message: 'Error deleting meeting', error });
     }
 });
+
+
 const organizationSchema = new mongoose.Schema({
     name: { type: String, required: true },
     products: { type: Number, required: true },
@@ -1920,10 +1952,20 @@ app.delete("/api/organizations/:id", async (req, res) => {
     }
 });
 
-
 // **Complaint Schema**
+
 const ComplaintSchema = new mongoose.Schema(
     {
+        complaintID: {
+            type: String,
+            unique: true,
+            required: true,
+            default: function () {
+                // Generates ID in the format TT-XXXXXX
+                const randomNumbers = Math.floor(100000 + Math.random() * 900000); // 6 random digits
+                return `TT-${randomNumbers}`;
+            },
+        },
         fullName: { type: String, required: true },
         phone: { type: String, required: true },
         projectName: { type: String, required: true },
@@ -1962,6 +2004,22 @@ app.post("/api/complaints", async (req, res) => {
         res.status(500).json({ message: "❌ Error submitting complaint", error });
     }
 });
+// **Fetch Complaint by ComplaintID**
+app.get("/api/complaints/:complaintID", async (req, res) => {
+    try {
+        const { complaintID } = req.params;
+
+        const complaint = await Complaint.findOne({ complaintID });
+
+        if (!complaint) {
+            return res.status(404).json({ message: "❌ Complaint not found" });
+        }
+
+        res.status(200).json({ message: "✅ Complaint fetched successfully", complaint });
+    } catch (error) {
+        res.status(500).json({ message: "❌ Error fetching complaint", error });
+    }
+});
 
 // **Fetch All Complaints**
 app.get("/api/complaints", async (req, res) => {
@@ -1992,9 +2050,9 @@ app.put("/api/complaints/:id", async (req, res) => {
     try {
         const complaintId = req.params.id;
         const updatedComplaintData = req.body;  // The updated data sent from the client
-        
+
         const complaint = await Complaint.findByIdAndUpdate(complaintId, updatedComplaintData, { new: true });
-        
+
         if (!complaint) {
             return res.status(404).json({ message: "❌ Complaint not found" });
         }
