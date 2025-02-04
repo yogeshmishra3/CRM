@@ -1799,7 +1799,7 @@ app.post('/api/meetings', async (req, res) => {
         }
 
         // Check keyword length (e.g., 50 characters limit)
-        const keywordLimit = 50;
+        const keywordLimit = 20;
         if (keyword && keyword.length > keywordLimit) {
             return res.status(400).json({ message: `Keyword should not exceed ${keywordLimit} characters` });
         }
