@@ -1992,7 +1992,6 @@ app.post("/api/complaints", async (req, res) => {
             preferredContact,
             complaintDescription,
             attachment, // Cloudinary URL is received from the frontend
-            status,
         });
 
         await newComplaint.save();
