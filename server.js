@@ -1965,12 +1965,6 @@ const ComplaintSchema = new mongoose.Schema(
         preferredContact: { type: String, required: true },
         complaintDescription: { type: String, required: true },
         attachment: { type: String }, // Cloudinary URL
-        status: {
-            type: String,
-            required: true,
-            default: "Complaint Register Successfull we will update you soon",
-
-        }
     },
     { timestamps: true }
 );
