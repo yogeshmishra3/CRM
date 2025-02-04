@@ -1995,7 +1995,7 @@ app.post("/api/complaints", async (req, res) => {
             email,
             preferredContact,
             complaintDescription,
-            attachment: attachment || null, // Store only if available
+            attachment, // Cloudinary URL is received from the frontend
         });
 
         await newComplaint.save();
