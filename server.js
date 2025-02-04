@@ -1798,6 +1798,12 @@ app.post('/api/meetings', async (req, res) => {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
+        // Check keyword length (e.g., 50 characters limit)
+        const keywordLimit = 50;
+        if (keyword && keyword.length > keywordLimit) {
+            return res.status(400).json({ message: `Keyword should not exceed ${keywordLimit} characters` });
+        }
+
         // Check for time conflicts
         const existingMeetings = await Meeting.findOne({ date });
         if (existingMeetings) {
@@ -2017,7 +2023,7 @@ app.get("/api/complaints/:complaintID", async (req, res) => {
         const complaint = await Complaint.findOne({ complaintID });
 
         if (!complaint) {
-            return res.status(404).json({ message: "❌ Complaint not found" });
+            return res.status(404).json({ message: "Complaint not found" });
         }
 
         res.status(200).json({
@@ -2025,7 +2031,7 @@ app.get("/api/complaints/:complaintID", async (req, res) => {
             complaint,
         });
     } catch (error) {
-        res.status(500).json({ message: "❌ Error fetching complaint", error });
+        res.status(500).json({ message: "Error fetching complaint", error });
     }
 });
 
@@ -2035,7 +2041,7 @@ app.get("/api/complaints", async (req, res) => {
         const complaints = await Complaint.find();
         res.status(200).json(complaints);
     } catch (error) {
-        res.status(500).json({ message: "❌ Error fetching complaints", error });
+        res.status(500).json({ message: "Error fetching complaints", error });
     }
 });
 // **Delete Complaint by ID**
@@ -2045,12 +2051,12 @@ app.delete("/api/complaints/:id", async (req, res) => {
         const complaint = await Complaint.findByIdAndDelete(complaintId);  // Find and delete the complaint by ID
 
         if (!complaint) {
-            return res.status(404).json({ message: "❌ Complaint not found" });
+            return res.status(404).json({ message: "Complaint not found" });
         }
 
-        res.status(200).json({ message: "✅ Complaint deleted successfully" });
+        res.status(200).json({ message: "Complaint deleted successfully" });
     } catch (error) {
-        res.status(500).json({ message: "❌ Error deleting complaint", error });
+        res.status(500).json({ message: "Error deleting complaint", error });
     }
 });
 // **Edit (Update) Complaint by ID**
@@ -2062,12 +2068,12 @@ app.put("/api/complaints/:id", async (req, res) => {
         const complaint = await Complaint.findByIdAndUpdate(complaintId, updatedComplaintData, { new: true });
 
         if (!complaint) {
-            return res.status(404).json({ message: "❌ Complaint not found" });
+            return res.status(404).json({ message: "Complaint not found" });
         }
 
-        res.status(200).json({ message: "✅ Complaint updated successfully", complaint });
+        res.status(200).json({ message: "Complaint updated successfully", complaint });
     } catch (error) {
-        res.status(500).json({ message: "❌ Error updating complaint", error });
+        res.status(500).json({ message: "Error updating complaint", error });
     }
 });
 
