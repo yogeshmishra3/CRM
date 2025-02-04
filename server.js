@@ -1974,13 +1974,17 @@ const ComplaintSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
-
 const Complaint = mongoose.model("Complaint", ComplaintSchema);
 
-// **API to Submit a Complaint (URL from Cloudinary)**
+// **API to Submit a Complaint**
 app.post("/api/complaints", async (req, res) => {
     try {
         const { fullName, phone, projectName, category, subject, email, preferredContact, complaintDescription, attachment } = req.body;
+
+        // ✅ Validation - Ensure required fields are filled
+        if (!fullName || !phone || !projectName || !category || !subject || !email || !complaintDescription) {
+            return res.status(400).json({ message: "❌ All required fields must be filled." });
+        }
 
         const newComplaint = new Complaint({
             fullName,
@@ -1991,15 +1995,18 @@ app.post("/api/complaints", async (req, res) => {
             email,
             preferredContact,
             complaintDescription,
-            attachment, // Cloudinary URL is received from the frontend
+            attachment: attachment || null, // Store only if available
         });
 
         await newComplaint.save();
-        res.status(201).json({ message: "✅ Complaint submitted successfully", data: newComplaint });
+        res.status(201).json({ message: "✅ Complaint submitted successfully!", complaintId: newComplaint._id });
+
     } catch (error) {
-        res.status(500).json({ message: "❌ Error submitting complaint", error });
+        console.error("❌ Error saving complaint:", error.message);
+        res.status(500).json({ message: "❌ Internal server error. Try again later.", error: error.message });
     }
 });
+
 // **Fetch Complaint by ComplaintID**
 // Fetch Complaint Details by Complaint ID
 app.get("/api/complaints/:complaintID", async (req, res) => {
