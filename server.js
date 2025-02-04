@@ -1138,16 +1138,6 @@ module.exports = (req, res) => {
     app(req, res);
 };
 
-
-
-
-
-
-
-
-
-
-
 // New Quotation Schema
 const newQuotationSchema = new mongoose.Schema({
     dealName: String, // Storing deal name
@@ -1975,6 +1965,12 @@ const ComplaintSchema = new mongoose.Schema(
         preferredContact: { type: String, required: true },
         complaintDescription: { type: String, required: true },
         attachment: { type: String }, // Cloudinary URL
+        status: {
+            type: String,
+            required: true,
+            default: "Complaint Register Successful. We will update you soon.",
+        }
+
     },
     { timestamps: true }
 );
@@ -1996,6 +1992,7 @@ app.post("/api/complaints", async (req, res) => {
             preferredContact,
             complaintDescription,
             attachment, // Cloudinary URL is received from the frontend
+            status,
         });
 
         await newComplaint.save();
