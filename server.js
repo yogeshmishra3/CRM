@@ -1968,9 +1968,9 @@ const ComplaintSchema = new mongoose.Schema(
         status: {
             type: String,
             required: true,
-            default: "Complaint Register Successful. We will update you soon.",
-        }
+            default: "Complaint Register Successfull we will update you soon",
 
+        }
     },
     { timestamps: true }
 );
@@ -1992,7 +1992,6 @@ app.post("/api/complaints", async (req, res) => {
             preferredContact,
             complaintDescription,
             attachment, // Cloudinary URL is received from the frontend
-            status,
         });
 
         await newComplaint.save();
