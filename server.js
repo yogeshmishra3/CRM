@@ -618,18 +618,19 @@ app.delete('/api/contacts/:id', async (req, res) => {
 });
 
 
+
 const NewLeadSchema = new mongoose.Schema({
     leadName: String,  // Add this field for the lead name
     name: String,
     email: String,
     phone: String,
     address: String,
+    date: { type: Date, required: true }, // Add date field, ensure it's a Date type
     dealStatus: String, // Add this field
     message: String,
 });
 
 const NewLead = mongoose.model("NewLead", NewLeadSchema);
-
 
 app.get("/api/NewLeads", async (req, res) => {
     try {
@@ -641,14 +642,14 @@ app.get("/api/NewLeads", async (req, res) => {
 });
 
 app.post("/api/NewLeads", async (req, res) => {
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
+    const { leadName, name, email, phone, address, dealStatus, message, date } = req.body; // include date in request body
 
-    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
+    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message || !date) {
         return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
     try {
-        const newLead = new NewLead({ leadName, name, email, phone, address, dealStatus, message });
+        const newLead = new NewLead({ leadName, name, email, phone, address, dealStatus, message, date });
         await newLead.save();
         res.status(201).json({ success: true, message: "New lead created successfully" });
     } catch (err) {
@@ -656,17 +657,15 @@ app.post("/api/NewLeads", async (req, res) => {
     }
 });
 
-
-
-// PUT Route to Update Deal Status
+// PUT Route to Update Lead
 app.put("/api/NewLeads/:id", async (req, res) => {
     const { id } = req.params;
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
+    const { leadName, name, email, phone, address, dealStatus, message, date } = req.body; // include date in request body
 
     try {
         const updatedLead = await NewLead.findByIdAndUpdate(
             id,
-            { leadName, name, email, phone, address, dealStatus, message },
+            { leadName, name, email, phone, address, dealStatus, message, date },
             { new: true } // Return the updated document
         );
 
@@ -688,72 +687,31 @@ app.put("/api/NewLeads/:id", async (req, res) => {
     }
 });
 
-
-app.put("/api/NewLeads/edit/:id", async (req, res) => {
-    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
-    const { id } = req.params;
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
-
-    // Check for missing fields
-    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-
-    try {
-        // Update the lead in the database
-        const updatedLead = await NewLead.findByIdAndUpdate(
-            id,
-            { leadName, name, email, phone, address, dealStatus, message },
-            { new: true } // Return the updated lead document
-        );
-
-        // Handle case where the lead is not found
-        if (!updatedLead) {
-            return res.status(404).json({ success: false, message: "Lead not found" });
-        }
-
-        // Respond with success and the updated lead
-        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
-    } catch (error) {
-        // Handle server errors
-        res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
-    }
-});
-
-
 // Edit a lead
 app.put("/api/NewLeads/edit/:id", async (req, res) => {
-    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
     const { id } = req.params;
-    const { name, email, phone, address, dealStatus, message } = req.body;
+    const { name, email, phone, address, dealStatus, message, date } = req.body; // include date in request body
 
-    // Check for missing fields
-    if (!name || !email || !phone || !address || !dealStatus || !message) {
+    if (!name || !email || !phone || !address || !dealStatus || !message || !date) {
         return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
     try {
-        // Update the lead in the database
         const updatedLead = await NewLead.findByIdAndUpdate(
             id,
-            { name, email, phone, address, dealStatus, message },
+            { name, email, phone, address, dealStatus, message, date },
             { new: true } // Return the updated lead document
         );
 
-        // Handle case where the lead is not found
         if (!updatedLead) {
             return res.status(404).json({ success: false, message: "Lead not found" });
         }
 
-        // Respond with success and the updated lead
         res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
     } catch (error) {
-        // Handle server errors
         res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
     }
 });
-
-
 
 app.delete("/api/NewLeads/:id", async (req, res) => {
     const { id } = req.params;
