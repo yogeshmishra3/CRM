@@ -625,12 +625,12 @@ const NewLeadSchema = new mongoose.Schema({
     email: String,
     phone: String,
     address: String,
-    date: { type: Date, required: true }, // Add date field, ensure it's a Date type
     dealStatus: String, // Add this field
     message: String,
 });
 
 const NewLead = mongoose.model("NewLead", NewLeadSchema);
+
 
 app.get("/api/NewLeads", async (req, res) => {
     try {
@@ -642,14 +642,14 @@ app.get("/api/NewLeads", async (req, res) => {
 });
 
 app.post("/api/NewLeads", async (req, res) => {
-    const { leadName, name, email, phone, address, dealStatus, message, date } = req.body; // include date in request body
+    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
 
-    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message || !date) {
+    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
         return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
     try {
-        const newLead = new NewLead({ leadName, name, email, phone, address, dealStatus, message, date });
+        const newLead = new NewLead({ leadName, name, email, phone, address, dealStatus, message });
         await newLead.save();
         res.status(201).json({ success: true, message: "New lead created successfully" });
     } catch (err) {
@@ -657,15 +657,17 @@ app.post("/api/NewLeads", async (req, res) => {
     }
 });
 
-// PUT Route to Update Lead
+
+
+// PUT Route to Update Deal Status
 app.put("/api/NewLeads/:id", async (req, res) => {
     const { id } = req.params;
-    const { leadName, name, email, phone, address, dealStatus, message, date } = req.body; // include date in request body
+    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
 
     try {
         const updatedLead = await NewLead.findByIdAndUpdate(
             id,
-            { leadName, name, email, phone, address, dealStatus, message, date },
+            { leadName, name, email, phone, address, dealStatus, message },
             { new: true } // Return the updated document
         );
 
@@ -687,31 +689,72 @@ app.put("/api/NewLeads/:id", async (req, res) => {
     }
 });
 
-// Edit a lead
-app.put("/api/NewLeads/edit/:id", async (req, res) => {
-    const { id } = req.params;
-    const { name, email, phone, address, dealStatus, message, date } = req.body; // include date in request body
 
-    if (!name || !email || !phone || !address || !dealStatus || !message || !date) {
+app.put("/api/NewLeads/edit/:id", async (req, res) => {
+    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
+    const { id } = req.params;
+    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
+
+    // Check for missing fields
+    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
         return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
     try {
+        // Update the lead in the database
         const updatedLead = await NewLead.findByIdAndUpdate(
             id,
-            { name, email, phone, address, dealStatus, message, date },
+            { leadName, name, email, phone, address, dealStatus, message },
             { new: true } // Return the updated lead document
         );
 
+        // Handle case where the lead is not found
         if (!updatedLead) {
             return res.status(404).json({ success: false, message: "Lead not found" });
         }
 
+        // Respond with success and the updated lead
         res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
     } catch (error) {
+        // Handle server errors
         res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
     }
 });
+
+
+// Edit a lead
+app.put("/api/NewLeads/edit/:id", async (req, res) => {
+    console.log("Editing lead with ID:", req.params.id); // Log to debug if the route is hit
+    const { id } = req.params;
+    const { name, email, phone, address, dealStatus, message } = req.body;
+
+    // Check for missing fields
+    if (!name || !email || !phone || !address || !dealStatus || !message) {
+        return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    try {
+        // Update the lead in the database
+        const updatedLead = await NewLead.findByIdAndUpdate(
+            id,
+            { name, email, phone, address, dealStatus, message },
+            { new: true } // Return the updated lead document
+        );
+
+        // Handle case where the lead is not found
+        if (!updatedLead) {
+            return res.status(404).json({ success: false, message: "Lead not found" });
+        }
+
+        // Respond with success and the updated lead
+        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
+    } catch (error) {
+        // Handle server errors
+        res.status(500).json({ success: false, message: "Error updating lead", error: error.message });
+    }
+});
+
+
 
 app.delete("/api/NewLeads/:id", async (req, res) => {
     const { id } = req.params;
@@ -1311,7 +1354,7 @@ const DealSchema2 = new mongoose.Schema({
     scheduledMeeting: { type: Date, default: null }, // Optional: Default null
 });
 
-const DealManagement = mongoose.model("DealManagement", DealSchema2);
+
 
 // Sync new leads from external API
 app.get("/api/sync-newleads", async (req, res) => {
@@ -1403,6 +1446,7 @@ app.post("/api/dealmanagement", async (req, res) => {
     }
 });
 
+
 // Update deal stage
 app.put("/api/dealmanagement/:id", async (req, res) => {
     const { id } = req.params;
@@ -1414,18 +1458,32 @@ app.put("/api/dealmanagement/:id", async (req, res) => {
             return res.status(404).json({ message: "Deal not found" });
         }
 
-        const validStages = ["Lead", "Contacted", "Proposal", "Qualified"];
+        // Allow "Archived" and restoring from "Archived"
+        const validStages = ["Lead", "Contacted", "Proposal", "Qualified", "Archived"];
         if (!validStages.includes(stage)) {
             return res.status(400).json({ message: "Invalid stage" });
         }
 
+        // Check if the deal is being restored from "Archived"
+        const isRestoring = deal.stage === "Archived" && stage !== "Archived";
+
         deal.stage = stage;
         await deal.save();
-        res.json(deal);
+
+        // Handle restore logic if moving from "Archived" to another stage
+        if (isRestoring) {
+            console.log(`Deal ${deal._id} restored from Archived to ${stage}`);
+            // You can add extra logic here, such as logging, notifications, or state updates
+        }
+
+        res.json({ message: `Deal updated successfully to stage: ${stage}`, deal });
+
     } catch (error) {
         res.status(500).json({ message: "Error updating deal", error: error.message });
     }
+
 });
+
 
 // Schedule a meeting for a deal
 app.put("/api/dealmanagement/schedule/:id", async (req, res) => {
@@ -1542,182 +1600,6 @@ app.get("/api/sync-quotations-to-deals", async (req, res) => {
     }
 });
 
-// Deleted Leads Schema and Model
-const DeletedLeadSchema = new mongoose.Schema({
-    name: String, // Client Name
-    leadName: String, // Deal Name
-    stage: String,
-    amount: Number,
-    scheduledMeeting: Date,
-    deletedAt: { type: Date, default: Date.now },
-});
-const DeleteLeads = mongoose.model("DeleteLeads", DeletedLeadSchema);
-
-
-// Archive a deal (Move to DeleteLeads collection)
-app.post("/api/dealmanagement/archive/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const deal = await DealManagement.findById(id);
-
-        if (!deal) {
-            return res.status(404).json({ message: "Deal not found" });
-        }
-
-        // Check if the deal is in 'Qualified' stage before archiving
-        if (deal.stage !== "Qualified") {
-            return res.status(400).json({ message: "Only qualified deals can be archived" });
-        }
-
-        // Move the deal to DeleteLeads collection
-        const archivedLead = new DeleteLeads({
-            name: deal.name,
-            leadName: deal.leadName,
-            amount: deal.amount,
-            stage: deal.stage,
-            scheduledMeeting: deal.scheduledMeeting,
-        });
-        await archivedLead.save();
-
-        // Delete the deal from DealManagement
-        await DealManagement.findByIdAndDelete(id);
-
-        res.json({ message: "Lead archived successfully", archivedLead });
-    } catch (error) {
-        res.status(500).json({ message: "Error archiving lead", error });
-    }
-});
-
-
-
-// Archive a deal (Move to DeleteLeads collection)
-// Archive a deal (Move to DeleteLeads collection)
-app.post("/api/dealmanagement/archive/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const deal = await DealManagement.findById(id);
-
-        if (!deal) {
-            return res.status(404).json({ message: "Deal not found" });
-        }
-
-        // Check if the deal is in 'Qualified' stage before archiving
-        if (deal.stage !== "Qualified") {
-            return res.status(400).json({ message: "Only qualified leads can be archived" });
-        }
-
-        // Move the deal to DeleteLeads collection
-        const archivedLead = new DeleteLeads({
-            name: deal.name,
-            leadName: deal.leadName,
-            amount: deal.amount,
-            stage: deal.stage,
-            scheduledMeeting: deal.scheduledMeeting,
-        });
-        await archivedLead.save();
-
-        // Delete the deal from DealManagement
-        await DealManagement.findByIdAndDelete(id);
-
-        res.json({ message: "Lead archived successfully", archivedLead });
-    } catch (error) {
-        res.status(500).json({ message: "Error archiving lead", error });
-    }
-});
-
-
-
-// Restore an archived lead
-app.post("/api/recyclebin/restore/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const archivedLead = await DeleteLeads.findById(id);
-
-        if (!archivedLead) {
-            return res.status(404).json({ message: "Archived lead not found" });
-        }
-
-        // Restore the lead to DealManagement collection with 'Qualified' stage
-        const restoredLead = new DealManagement({
-            name: archivedLead.name,
-            leadName: archivedLead.leadName,
-            amount: archivedLead.amount,
-            stage: "Qualified", // Set stage to Qualified
-            scheduledMeeting: archivedLead.scheduledMeeting,
-        });
-        await restoredLead.save();
-
-        // Remove from DeleteLeads collection
-        await DeleteLeads.findByIdAndDelete(id);
-
-        res.json({ message: "Lead restored successfully", restoredLead });
-    } catch (error) {
-        res.status(500).json({ message: "Error restoring lead", error });
-    }
-});
-
-// Fetch archived leads (Recycle Bin)
-// Fetch archived leads (Recycle Bin)
-app.get("/api/recyclebin", async (req, res) => {
-    try {
-        const archivedLeads = await DeleteLeads.find();
-        res.json(archivedLeads);
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching archived leads", error });
-    }
-});
-
-
-
-// Restore an archived lead
-// Restore an archived lead
-app.post("/api/recyclebin/restore/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const archivedLead = await DeleteLeads.findById(id);
-
-        if (!archivedLead) {
-            return res.status(404).json({ message: "Archived lead not found" });
-        }
-
-        // Restore the lead to DealManagement collection with 'Qualified' stage
-        const restoredLead = new DealManagement({
-            name: archivedLead.name,
-            leadName: archivedLead.leadName,
-            amount: archivedLead.amount,
-            stage: "Qualified", // Set stage to Qualified
-            scheduledMeeting: archivedLead.scheduledMeeting,
-        });
-        await restoredLead.save();
-
-        // Remove from DeleteLeads collection
-        await DeleteLeads.findByIdAndDelete(id);
-
-        res.json({ message: "Lead restored successfully", restoredLead });
-    } catch (error) {
-        res.status(500).json({ message: "Error restoring lead", error });
-    }
-});
-
-
-
-// Delete an archived lead permanently
-app.delete("/api/recyclebin/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const deletedLead = await DeleteLeads.findByIdAndDelete(id);
-
-        if (!deletedLead) {
-            return res.status(404).json({ message: "Archived lead not found" });
-        }
-
-        res.json({ message: "Archived lead deleted permanently", deletedLead });
-    } catch (error) {
-        res.status(500).json({ message: "Error deleting archived lead", error });
-    }
-});
-
-
 // Define the schema for a meeting
 const meetingSchema = new mongoose.Schema({
     date: { type: String, required: true }, // Format: YYYY-MM-DD
@@ -1744,6 +1626,14 @@ app.get('/api/meetings/:date', async (req, res) => {
         res.status(200).json(meeting || { date, meetings: [] });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching meetings', error });
+    }
+});
+app.get("/api/v1/meetings", async (req, res) => {
+    try {
+        const meetings = await Meeting.find();
+        res.json(meetings);
+    } catch (error) {
+        res.status(500).json({ error: "Server error" });
     }
 });
 
@@ -1789,7 +1679,8 @@ app.post('/api/meetings', async (req, res) => {
     }
 });
 
-// API Endpoint to Edit a Meeting for a specific date
+
+// 🚀 API: Edit a Meeting
 app.put('/api/meetings/:date/:index', async (req, res) => {
     try {
         const { date, index } = req.params;
@@ -1828,22 +1719,25 @@ app.put('/api/meetings/:date/:index', async (req, res) => {
     }
 });
 
-// API Endpoint to Delete a Meeting for a specific date
-app.delete('/api/meetings/:date/:index', async (req, res) => {
+app.delete("/api/v1/meetings", async (req, res) => {
     try {
-        const { date, index } = req.params;
+        const { id } = req.params;
 
-        const meeting = await Meeting.findOne({ date });
-        if (!meeting || !meeting.meetings[index]) {
-            return res.status(404).json({ message: 'Meeting not found' });
+        // ✅ Validate MongoDB ObjectId before querying
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: "Invalid meeting ID format" });
         }
 
-        meeting.meetings.splice(index, 1); // Remove the meeting at the specified index
-        await meeting.save();
+        const deletedMeeting = await Meeting.findByIdAndDelete(id);
 
-        res.status(200).json(meeting);
+        if (!deletedMeeting) {
+            return res.status(404).json({ error: "Meeting not found" });
+        }
+
+        res.json({ message: "Meeting deleted successfully" });
     } catch (error) {
-        res.status(500).json({ message: 'Error deleting meeting', error });
+        console.error("Server error:", error);
+        res.status(500).json({ error: "Internal server error" });
     }
 });
 
@@ -2105,5 +1999,283 @@ app.get('/api/financeDetails', async (req, res) => {
     } catch (err) {
         console.error("Error fetching finance details:", err);
         res.status(500).json({ message: 'Error fetching finance details' });
+    }
+});
+
+// Client Schema
+const clientSchema = new mongoose.Schema({
+    clientId: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    phone: { type: String, required: true },
+    address: { type: String, required: true },
+    companyname: { type: String, required: true },
+    status: { type: String, required: true },
+    dob: { type: Date, required: true },
+    city: { type: String, required: true },
+    industry: { type: String, required: true },
+    note: { type: String },
+    created_at: { type: Date, default: Date.now },
+});
+
+
+const Client = mongoose.model("ClientDetail", clientSchema);
+
+// ✅ Fetch All Clients
+app.get("/api/clientDetail", async (req, res) => {
+    try {
+        const clients = await Client.find();
+        res.status(200).json({ success: true, clients });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error fetching clients", error: err.message });
+    }
+});
+
+// ✅ Fetch Client by ID
+app.get("/api/clientDetail/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const client = await Client.findById(id);
+
+        if (!client) {
+            return res.status(404).json({ success: false, message: "Client not found" });
+        }
+
+        res.status(200).json({ success: true, client });
+    } catch (err) {
+        console.error("Error fetching client details:", err);
+        res.status(500).json({ success: false, message: "Error fetching client details", error: err.message });
+    }
+});
+
+
+
+
+// ✅ Add New Client
+app.post("/api/clientDetail", async (req, res) => {
+    try {
+        let { clientId, name, email, phone, address, companyname, status, dob, city, industry, note } = req.body;
+
+        console.log("Received client data:", req.body); // Log request body for debugging
+
+        // Ensure clientId is provided and not null
+        if (!clientId || clientId.trim() === "") {
+            return res.status(400).json({ success: false, message: "Client ID must be provided" });
+        }
+
+        // Check if clientId is already in the database
+        const existingClient = await Client.findOne({ clientId });
+        if (existingClient) {
+            return res.status(400).json({ success: false, message: "Client ID already exists" });
+        }
+
+        // Ensure other fields are valid
+        if (!name || !email || !phone || !address || !companyname || !dob || !industry || !city) {
+            return res.status(400).json({ success: false, message: "All required fields must be provided" });
+        }
+
+        const parsedDob = new Date(dob);
+        if (isNaN(parsedDob.getTime())) {
+            return res.status(400).json({ success: false, message: "Invalid Date of Birth format" });
+        }
+
+        // Save the client
+        const newClient = new Client({
+            clientId,
+            name,
+            email,
+            phone,
+            address,
+            companyname,
+            status,
+            dob: parsedDob,
+            city,
+            industry,
+            note,
+        });
+
+        const savedClient = await newClient.save();
+        res.status(201).json({ success: true, client: savedClient });
+
+    } catch (err) {
+        console.error("Error creating client:", err);  // Detailed error log
+        res.status(500).json({ success: false, message: "Error creating client", error: err.message });
+    }
+});
+
+
+
+
+
+// ✅ Edit Client
+app.put("/api/clientDetail/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { clientId, name, email, phone, address, companyname, status, dob, city, industry, note } = req.body;
+
+        if (!clientId || !name || !email || !phone || !address || !companyname || !dob || !industry || !city) {
+            return res.status(400).json({ success: false, message: "All required fields must be provided" });
+        }
+
+        const updatedClient = await Client.findByIdAndUpdate(
+            id,
+            { clientId, name, email, phone, address, companyname, status, dob, city, industry, note },
+            { new: true }
+        );
+
+        if (!updatedClient) {
+            return res.status(404).json({ success: false, message: "Client not found" });
+        }
+
+        res.status(200).json({ success: true, client: updatedClient });
+    } catch (err) {
+        console.error("Error updating client:", err);
+        res.status(500).json({ success: false, message: "Error updating client", error: err.message });
+    }
+});
+
+// ✅ Delete Client
+app.delete("/api/clientDetail/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedClient = await Client.findByIdAndDelete(id);
+
+        if (!deletedClient) {
+            return res.status(404).json({ success: false, message: "Client not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Client deleted successfully" });
+    } catch (err) {
+        console.error("Error deleting client:", err);
+        res.status(500).json({ success: false, message: "Error deleting client", error: err.message });
+    }
+});
+
+
+// Deleted Leads Schema and Model
+const DeletedLeadSchema = new mongoose.Schema({
+    name: { type: String, required: true }, // Client Name
+    leadName: { type: String, required: true }, // Deal Name
+    stage: { type: String, required: true },
+    amount: { type: Number, default: 0 },
+    scheduledMeeting: { type: Date, default: Date.now },
+    deletedAt: { type: Date, default: Date.now },
+});
+const DeleteLeads = mongoose.model("DeleteLeads", DeletedLeadSchema);
+
+// Deal Management Schema and Model
+const DealManagementSchema = new mongoose.Schema({
+    name: { type: String, required: true }, // Client Name
+    leadName: { type: String, required: true }, // Deal Name
+    stage: { type: String, required: true },
+    amount: { type: Number, default: 0 },
+    scheduledMeeting: { type: Date, default: Date.now },
+});
+const DealManagement = mongoose.model("DealManagement", DealManagementSchema);
+
+// Archive a deal (Move to DeleteLeads collection)
+app.post("/api/dealmanagement/archive/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deal = await DealManagement.findById(id);
+
+        if (!deal) {
+            return res.status(404).json({ message: "Deal not found" });
+        }
+
+        // Check if the deal is in 'Qualified' stage before archiving
+        if (deal.stage !== "Qualified") {
+            return res.status(400).json({ message: "Only qualified deals can be archived" });
+        }
+
+        // Move the deal to DeleteLeads collection
+        const archivedLead = new DeleteLeads({
+            name: deal.name,
+            leadName: deal.leadName,
+            amount: deal.amount,
+            stage: deal.stage,
+            scheduledMeeting: deal.scheduledMeeting,
+        });
+        await archivedLead.save();
+
+        // Delete the deal from DealManagement
+        await DealManagement.findByIdAndDelete(id);
+
+        res.json({ message: "Lead archived successfully", archivedLead });
+    } catch (error) {
+        res.status(500).json({ message: "Error archiving lead", error });
+    }
+});
+
+// Fetch archived leads (Recycle Bin)
+app.get("/api/recyclebin", async (req, res) => {
+    try {
+        const archivedLeads = await DeleteLeads.find();
+        res.json(archivedLeads);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching archived leads", error });
+    }
+});
+
+app.post("/api/recyclebin/restore/:id", async (req, res) => {
+    const { id } = req.params; // Correctly extract the ID from URL params
+    try {
+        const deal = await DealManagement.findById(id);
+        if (!deal) {
+            return res.status(404).json({ message: "Deal not found" });
+        }
+
+        deal.stage = "Qualified"; // Restore the stage to "Qualified"
+        await deal.save();
+
+        res.json(deal); // Return the updated deal as JSON
+    } catch (error) {
+        console.error("Restore Error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+// Restore an archived lead
+app.post("/api/recyclebin/restore/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const archivedLead = await DeleteLeads.findById(id);
+
+        if (!archivedLead) {
+            return res.status(404).json({ message: "Archived lead not found" });
+        }
+
+        // Restore the lead to DealManagement collection with 'Qualified' stage
+        const restoredLead = new DealManagement({
+            name: archivedLead.name,
+            leadName: archivedLead.leadName,
+            amount: archivedLead.amount,
+            stage: "Qualified", // Set stage to Qualified
+            scheduledMeeting: archivedLead.scheduledMeeting,
+        });
+        await restoredLead.save();
+
+        // Remove from DeleteLeads collection
+        await DeleteLeads.findByIdAndDelete(id);
+
+        res.json({ message: "Lead restored successfully", restoredLead });
+    } catch (error) {
+        res.status(500).json({ message: "Error restoring lead", error });
+    }
+});
+
+// Delete an archived lead permanently
+app.delete("/api/recyclebin/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedLead = await DeleteLeads.findByIdAndDelete(id);
+
+        if (!deletedLead) {
+            return res.status(404).json({ message: "Archived lead not found" });
+        }
+
+        res.json({ message: "Archived lead deleted permanently", deletedLead });
+    } catch (error) {
+        res.status(500).json({ message: "Error deleting archived lead", error });
     }
 });
