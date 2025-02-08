@@ -1628,14 +1628,17 @@ app.get('/api/meetings/:date', async (req, res) => {
         res.status(500).json({ message: 'Error fetching meetings', error });
     }
 });
-app.get("/api/v1/meetings", async (req, res) => {
+app.get("/api/meetings", async (req, res) => {
     try {
         const meetings = await Meeting.find();
-        res.json(meetings);
+        res.status(200).json({ success: true, meetings });
     } catch (error) {
-        res.status(500).json({ error: "Server error" });
+        console.error("Error fetching meetings:", error);
+        res.status(500).json({ success: false, message: "Server error while fetching meetings." });
     }
 });
+
+
 
 // Add a meeting to a specific date
 app.post('/api/meetings', async (req, res) => {
@@ -1678,66 +1681,50 @@ app.post('/api/meetings', async (req, res) => {
         res.status(500).json({ message: 'Error adding meeting', error });
     }
 });
-
-
-// 🚀 API: Edit a Meeting
-app.put('/api/meetings/:date/:index', async (req, res) => {
+app.put("/api/meetings/update", async (req, res) => {
     try {
-        const { date, index } = req.params;
-        const { startTime, endTime, note, keyword } = req.body;
+        const { id, date, startTime, endTime, note, keyword } = req.body;
 
-        if (!startTime || !endTime || !note) {
-            return res.status(400).json({ message: 'All fields are required' });
+        if (!id) {
+            return res.status(400).json({ message: "Meeting ID is required." });
         }
 
-        const meeting = await Meeting.findOne({ date });
-        if (!meeting || !meeting.meetings[index]) {
-            return res.status(404).json({ message: 'Meeting not found' });
+        const updatedMeeting = await Meeting.findByIdAndUpdate(
+            id,
+            { date, startTime, endTime, note, keyword },
+            { new: true }
+        );
+
+        if (!updatedMeeting) {
+            return res.status(404).json({ message: "Meeting not found." });
         }
 
-        // Check for time conflicts after updating
-        const conflict = meeting.meetings.some((m, i) => {
-            if (i !== parseInt(index)) {
-                return (
-                    (startTime >= m.startTime && startTime < m.endTime) ||
-                    (endTime > m.startTime && endTime <= m.endTime)
-                );
-            }
-            return false;
-        });
-
-        if (conflict) {
-            return res.status(400).json({ message: 'Time slot is already occupied' });
-        }
-
-        meeting.meetings[index] = { startTime, endTime, note, keyword };
-        await meeting.save();
-
-        res.status(200).json(meeting);
+        res.status(200).json({ message: "Meeting updated successfully.", meeting: updatedMeeting });
     } catch (error) {
-        res.status(500).json({ message: 'Error editing meeting', error });
+        console.error("Error updating meeting:", error);
+        res.status(500).json({ message: "Server error while updating meeting." });
     }
 });
 
-app.delete("/api/v1/meetings", async (req, res) => {
+// Delete Meeting
+app.delete("/api/meetings/delete", async (req, res) => {
     try {
-        const { id } = req.params;
+        const { id } = req.body;
 
-        // ✅ Validate MongoDB ObjectId before querying
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ error: "Invalid meeting ID format" });
+        if (!id) {
+            return res.status(400).json({ message: "Meeting ID is required." });
         }
 
         const deletedMeeting = await Meeting.findByIdAndDelete(id);
 
         if (!deletedMeeting) {
-            return res.status(404).json({ error: "Meeting not found" });
+            return res.status(404).json({ message: "Meeting not found." });
         }
 
-        res.json({ message: "Meeting deleted successfully" });
+        res.status(200).json({ message: "Meeting deleted successfully." });
     } catch (error) {
-        console.error("Server error:", error);
-        res.status(500).json({ error: "Internal server error" });
+        console.error("Error deleting meeting:", error);
+        res.status(500).json({ message: "Server error while deleting meeting." });
     }
 });
 
