@@ -1926,7 +1926,12 @@ const financeDetailsSchema = new mongoose.Schema({
     midPayment: { type: Number, default: 0 },
     finalPayment: { type: Number, default: 0 },
     amount: { type: Number, required: true },
-    balance: { type: Number, default: 0 }
+    balance: { type: Number, default: 0 },
+    paymentDate: {
+        advancedPDate: { type: String, default: null },
+        midPDate: { type: String, default: null },
+        finalPDate: { type: String, default: null }
+    }
 });
 
 // Create FinanceDetails model
@@ -1934,7 +1939,7 @@ const FinanceDetails = mongoose.model('FinanceDetails', financeDetailsSchema);
 
 // POST route to create or update finance details
 app.post('/api/financeDetails', async (req, res) => {
-    const { id, dealName, clientName, dueDate, advancePayment, midPayment, finalPayment, amount } = req.body;
+    const { id, dealName, clientName, dueDate, advancePayment, midPayment, finalPayment, amount, paymentDate } = req.body;
 
     if (!id || !dealName || !clientName || amount == null) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -1952,6 +1957,12 @@ app.post('/api/financeDetails', async (req, res) => {
             financeEntry.amount = amount;
             financeEntry.balance = amount - (financeEntry.advancePayment + financeEntry.midPayment + financeEntry.finalPayment);
 
+            if (paymentDate) {
+                financeEntry.paymentDate.advancedPDate = paymentDate.advancedPDate || financeEntry.paymentDate.advancedPDate;
+                financeEntry.paymentDate.midPDate = paymentDate.midPDate || financeEntry.paymentDate.midPDate;
+                financeEntry.paymentDate.finalPDate = paymentDate.finalPDate || financeEntry.paymentDate.finalPDate;
+            }
+
             const updatedFinance = await financeEntry.save();
             return res.status(200).json(updatedFinance);
         } else {
@@ -1965,7 +1976,12 @@ app.post('/api/financeDetails', async (req, res) => {
                 midPayment: midPayment || 0,
                 finalPayment: finalPayment || 0,
                 amount,
-                balance: amount - ((advancePayment || 0) + (midPayment || 0) + (finalPayment || 0))
+                balance: amount - ((advancePayment || 0) + (midPayment || 0) + (finalPayment || 0)),
+                paymentDate: {
+                    advancedPDate: paymentDate?.advancedPDate || null,
+                    midPDate: paymentDate?.midPDate || null,
+                    finalPDate: paymentDate?.finalPDate || null
+                }
             });
 
             const savedFinance = await newFinance.save();
@@ -1976,7 +1992,6 @@ app.post('/api/financeDetails', async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
-
 
 // GET route to fetch all finance details
 app.get('/api/financeDetails', async (req, res) => {
