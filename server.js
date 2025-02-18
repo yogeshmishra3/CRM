@@ -1600,7 +1600,6 @@ app.get("/api/sync-quotations-to-deals", async (req, res) => {
     }
 });
 
-// Define the schema for a meeting
 const meetingSchema = new mongoose.Schema({
     date: { type: String, required: true }, // Format: YYYY-MM-DD
     meetings: [
@@ -1608,37 +1607,24 @@ const meetingSchema = new mongoose.Schema({
             startTime: { type: String, required: true },
             endTime: { type: String, required: true },
             note: { type: String, required: true },
-            keyword: { type: [String], default: [] }, // Array of keyword
+            keyword: { type: String },
         },
     ],
 });
 
-// Create a model from the schema
 const Meeting = mongoose.model('Meeting', meetingSchema);
 
 // Routes
 
 // Get meetings for a specific date
-app.get('/api/meetings/:date', async (req, res) => {
+app.get('/api/meetings', async (req, res) => {
     try {
-        const { date } = req.params;
-        const meeting = await Meeting.findOne({ date });
-        res.status(200).json(meeting || { date, meetings: [] });
+        const meetings = await Meeting.find();
+        res.status(200).json(meetings);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching meetings', error });
     }
 });
-app.get("/api/meetings", async (req, res) => {
-    try {
-        const meetings = await Meeting.find();
-        res.status(200).json({ success: true, meetings });
-    } catch (error) {
-        console.error("Error fetching meetings:", error);
-        res.status(500).json({ success: false, message: "Server error while fetching meetings." });
-    }
-});
-
-
 
 // Add a meeting to a specific date
 app.post('/api/meetings', async (req, res) => {
@@ -1649,13 +1635,6 @@ app.post('/api/meetings', async (req, res) => {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
-        // Check keyword length (e.g., 50 characters limit)
-        const keywordLimit = 30;
-        if (keyword && keyword.length > keywordLimit) {
-            return res.status(400).json({ message: `Keyword should not exceed ${keywordLimit} characters` });
-        }
-
-        // Check for time conflicts
         const existingMeetings = await Meeting.findOne({ date });
         if (existingMeetings) {
             const conflict = existingMeetings.meetings.some(
@@ -1664,9 +1643,7 @@ app.post('/api/meetings', async (req, res) => {
                     (endTime > m.startTime && endTime <= m.endTime)
             );
             if (conflict) {
-                return res
-                    .status(400)
-                    .json({ message: 'Time slot is already occupied' });
+                return res.status(400).json({ message: 'Time slot is already occupied' });
             }
         }
 
@@ -1681,53 +1658,48 @@ app.post('/api/meetings', async (req, res) => {
         res.status(500).json({ message: 'Error adding meeting', error });
     }
 });
-app.put("/api/meetings/update", async (req, res) => {
+
+// API Endpoint to Edit a Meeting for a specific date
+app.put('/api/meetings/:date/:index', async (req, res) => {
     try {
-        const { id, date, startTime, endTime, note, keyword } = req.body;
+        const { date, index } = req.params;
+        const { startTime, endTime, note, keyword } = req.body;
 
-        if (!id) {
-            return res.status(400).json({ message: "Meeting ID is required." });
+        if (!startTime || !endTime || !note) {
+            return res.status(400).json({ message: 'All fields are required' });
         }
 
-        const updatedMeeting = await Meeting.findByIdAndUpdate(
-            id,
-            { date, startTime, endTime, note, keyword },
-            { new: true }
-        );
-
-        if (!updatedMeeting) {
-            return res.status(404).json({ message: "Meeting not found." });
+        const meeting = await Meeting.findOne({ date });
+        if (!meeting || !meeting.meetings[index]) {
+            return res.status(404).json({ message: 'Meeting not found' });
         }
 
-        res.status(200).json({ message: "Meeting updated successfully.", meeting: updatedMeeting });
+        meeting.meetings[index] = { startTime, endTime, note, keyword };
+        await meeting.save();
+
+        res.status(200).json(meeting);
     } catch (error) {
-        console.error("Error updating meeting:", error);
-        res.status(500).json({ message: "Server error while updating meeting." });
+        res.status(500).json({ message: 'Error editing meeting', error });
     }
 });
 
-// Delete Meeting
-app.delete("/api/meetings/delete", async (req, res) => {
+// API Endpoint to Delete a Meeting for a specific date
+// API Endpoint to Delete an Entire Meeting (Date) for a specific date
+app.delete('/api/meetings/:date', async (req, res) => {
     try {
-        const { id } = req.body;
+        const { date } = req.params;
 
-        if (!id) {
-            return res.status(400).json({ message: "Meeting ID is required." });
-        }
-
-        const deletedMeeting = await Meeting.findByIdAndDelete(id);
+        const deletedMeeting = await Meeting.findOneAndDelete({ date });
 
         if (!deletedMeeting) {
-            return res.status(404).json({ message: "Meeting not found." });
+            return res.status(404).json({ message: 'Meeting not found for the specified date' });
         }
 
-        res.status(200).json({ message: "Meeting deleted successfully." });
+        res.status(200).json({ message: 'Meeting deleted successfully', deletedMeeting });
     } catch (error) {
-        console.error("Error deleting meeting:", error);
-        res.status(500).json({ message: "Server error while deleting meeting." });
+        res.status(500).json({ message: 'Error deleting meeting', error });
     }
 });
-
 
 const organizationSchema = new mongoose.Schema({
     name: { type: String, required: true },
