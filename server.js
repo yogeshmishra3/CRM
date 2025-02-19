@@ -1626,6 +1626,19 @@ app.get('/api/meetings-add', async (req, res) => {
         res.status(500).json({ message: 'Error fetching meetings', error });
     }
 });
+// API to fetch meetings by date
+app.get("/api/meetings-add/:date", async (req, res) => {
+    try {
+        const { date } = req.params;
+        console.log("Fetching meetings for:", date);
+
+        const meetings = await Meeting.find({ meetingDate: date });
+        res.json({ meetings });
+    } catch (error) {
+        console.error("Error fetching meetings:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 
 // Add a meeting to a specific date
 app.post('/api/meetings', async (req, res) => {
