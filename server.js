@@ -573,7 +573,7 @@ const NewLead = mongoose.model("NewLead", NewLeadSchema);
 
 app.get('/api/NewLeads', async (req, res) => {
     try {
-        const leads = await NewLeadModel.find().sort({ createdAt: -1 });
+        const leads = await NewLead.find().sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,
@@ -597,7 +597,7 @@ app.post('/api/NewLeads', async (req, res) => {
     }
 
     try {
-        const newLead = new NewLeadModel({
+        const newLead = new NewLead({
             leadName,
             name,
             email,
