@@ -508,11 +508,20 @@ app.put("/api/Newtasks/edit/:id", async (req, res) => {
 // Leads APIs
 app.get('/api/Leads', async (req, res) => {
     try {
-        const Leads = await LeadsModel.find();
-        res.status(200).json({ success: true, Leads });
+        const leads = await LeadsModel.find()
+            .sort({ createdAt: -1 });
+        res.status(200).json({
+            success: true,
+            count: leads.length,
+            leads
+        });
     } catch (error) {
         console.error('Error fetching Leads:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch Leads', error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch Leads',
+            error: error.message
+        });
     }
 });
 
