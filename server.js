@@ -27,15 +27,6 @@ const DataSchema = new mongoose.Schema({
 
 const DataModel = mongoose.model('Data', DataSchema);
 
-const LeadsSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    date: { type: Date, required: true },
-    team: { type: String, required: true },
-    status: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-});
-const LeadsModel = mongoose.model('Leads', LeadsSchema);
-
 // Define project schema
 const projectSchema = new mongoose.Schema({
     id: { type: String, required: true },
@@ -503,81 +494,6 @@ app.put("/api/Newtasks/edit/:id", async (req, res) => {
     }
 });
 
-
-
-
-// Leads APIs
-app.get('/api/Leads', async (req, res) => {
-    try {
-        const leads = await LeadsModel.find()
-            .sort({ createdAt: -1 });
-        res.status(200).json({
-            success: true,
-            count: leads.length,
-            leads
-        });
-    } catch (error) {
-        console.error('Error fetching Leads:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch Leads',
-            error: error.message
-        });
-    }
-});
-
-app.post('/api/Leads', async (req, res) => {
-    const { name, date, team, status } = req.body;
-
-    if (!name || !date || !team || !status) {
-        return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-
-    try {
-        const lead = new LeadsModel({
-            name,
-            date,
-            team,
-            status
-        });
-
-        await lead.save();
-        res.status(201).json({ success: true, message: 'Lead added', lead });
-    } catch (error) {
-        console.error('Error adding Lead:', error);
-        res.status(500).json({ success: false, message: 'Error adding Lead', error: error.message });
-    }
-});
-
-
-app.put('/api/Leads/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, date, team, status } = req.body;
-    try {
-        const updatedLeads = await LeadsModel.findByIdAndUpdate(id, { name, date, team, status }, { new: true });
-        if (!updatedLeads) {
-            return res.status(404).json({ success: false, message: 'Leads not found' });
-        }
-        res.status(200).json({ success: true, message: 'Leads updated', Leads: updatedLeads });
-    } catch (error) {
-        console.error('Error updating Leads:', error);
-        res.status(500).json({ success: false, message: 'Error updating Leads', error: error.message });
-    }
-});
-
-app.delete('/api/Leads/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const deletedLeads = await LeadsModel.findByIdAndDelete(id);
-        if (!deletedLeads) {
-            return res.status(404).json({ success: false, message: 'Leads not found' });
-        }
-        res.status(200).json({ success: true, message: 'Leads deleted' });
-    } catch (error) {
-        console.error('Error deleting Leads:', error);
-        res.status(500).json({ success: false, message: 'Error deleting Leads', error: error.message });
-    }
-});
 const ContactSchema = new mongoose.Schema({
     name: String,
     email: String,
@@ -639,41 +555,63 @@ app.delete('/api/contacts/:id', async (req, res) => {
 
 
 
+
 const NewLeadSchema = new mongoose.Schema({
-    leadName: String,  // Add this field for the lead name
+    leadName: String,  // Lead name
     name: String,
     email: String,
     phone: String,
     address: String,
-    dealStatus: String, // Add this field
+    dealStatus: String, // Deal status
     message: String,
+    createdAt: { type: Date, default: Date.now } // Auto-generate timestamp
 });
+
 
 const NewLead = mongoose.model("NewLead", NewLeadSchema);
 
 
-app.get("/api/NewLeads", async (req, res) => {
+app.get('/api/NewLeads', async (req, res) => {
     try {
-        const leads = await NewLead.find();
-        res.status(200).json({ success: true, contacts: leads });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error fetching leads", error: err.message });
+        const leads = await NewLeadModel.find().sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: leads.length,
+            leads
+        });
+    } catch (error) {
+        console.error('Error fetching leads:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch leads',
+            error: error.message
+        });
     }
 });
-
-app.post("/api/NewLeads", async (req, res) => {
+app.post('/api/NewLeads', async (req, res) => {
     const { leadName, name, email, phone, address, dealStatus, message } = req.body;
 
-    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: "All fields are required" });
+    if (!name || !email || !phone || !address || !dealStatus || !message) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
     try {
-        const newLead = new NewLead({ leadName, name, email, phone, address, dealStatus, message });
+        const newLead = new NewLeadModel({
+            leadName,
+            name,
+            email,
+            phone,
+            address,
+            dealStatus,
+            message
+        });
+
         await newLead.save();
-        res.status(201).json({ success: true, message: "New lead created successfully" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error creating new lead", error: err.message });
+        res.status(201).json({ success: true, message: 'Lead added successfully', newLead });
+    } catch (error) {
+        console.error('Error adding lead:', error);
+        res.status(500).json({ success: false, message: 'Error adding lead', error: error.message });
     }
 });
 
