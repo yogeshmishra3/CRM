@@ -32,6 +32,7 @@ const LeadsSchema = new mongoose.Schema({
     date: { type: Date, required: true },
     team: { type: String, required: true },
     status: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
 });
 const LeadsModel = mongoose.model('Leads', LeadsSchema);
 
@@ -527,18 +528,27 @@ app.get('/api/Leads', async (req, res) => {
 
 app.post('/api/Leads', async (req, res) => {
     const { name, date, team, status } = req.body;
+
     if (!name || !date || !team || !status) {
         return res.status(400).json({ success: false, message: 'All fields are required' });
     }
+
     try {
-        const Leads = new LeadsModel({ name, date, team, status });
-        await Leads.save();
-        res.status(201).json({ success: true, message: 'Leads added', Leads });
+        const lead = new LeadsModel({
+            name,
+            date,
+            team,
+            status
+        });
+
+        await lead.save();
+        res.status(201).json({ success: true, message: 'Lead added', lead });
     } catch (error) {
-        console.error('Error adding Leads:', error);
-        res.status(500).json({ success: false, message: 'Error adding Leads', error: error.message });
+        console.error('Error adding Lead:', error);
+        res.status(500).json({ success: false, message: 'Error adding Lead', error: error.message });
     }
 });
+
 
 app.put('/api/Leads/:id', async (req, res) => {
     const { id } = req.params;
