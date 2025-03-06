@@ -557,95 +557,72 @@ app.delete('/api/contacts/:id', async (req, res) => {
 
 
 const NewLeadSchema = new mongoose.Schema({
-    leadName: String,  // Lead name
+    leadName: String,
     name: String,
     email: String,
     phone: String,
     address: String,
-    dealStatus: String, // Deal status
+    organization: String,  // Add this field
+    dealStatus: String,
     message: String,
-    createdAt: { type: Date, default: Date.now } // Auto-generate timestamp
+    date: String,  // Add this field
 });
 
 
 const NewLead = mongoose.model("NewLead", NewLeadSchema);
 
 
-app.get('/api/NewLeads', async (req, res) => {
+app.get("/api/NewLeads", async (req, res) => {
     try {
-        const leads = await NewLead.find().sort({ createdAt: -1 });
-
-        res.status(200).json({
-            success: true,
-            count: leads.length,
-            leads
-        });
-    } catch (error) {
-        console.error('Error fetching leads:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch leads',
-            error: error.message
-        });
+        const leads = await NewLead.find({}, "leadName name email phone address organization dealStatus message date");
+        res.status(200).json({ success: true, contacts: leads });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error fetching leads", error: err.message });
     }
 });
-app.post('/api/NewLeads', async (req, res) => {
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
 
-    if (!name || !email || !phone || !address || !dealStatus || !message) {
-        return res.status(400).json({ success: false, message: 'All fields are required' });
+
+app.post("/api/NewLeads", async (req, res) => {
+    const { leadName, name, email, phone, address, organization, dealStatus, message, date } = req.body;
+
+    if (!leadName || !name || !email || !phone || !address || !dealStatus || !message || !date) {
+        return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
     try {
-        const newLead = new NewLead({
-            leadName,
-            name,
-            email,
-            phone,
-            address,
-            dealStatus,
-            message
-        });
-
+        const newLead = new NewLead({ leadName, name, email, phone, address, organization, dealStatus, message, date });
         await newLead.save();
-        res.status(201).json({ success: true, message: 'Lead added successfully', newLead });
-    } catch (error) {
-        console.error('Error adding lead:', error);
-        res.status(500).json({ success: false, message: 'Error adding lead', error: error.message });
+        res.status(201).json({ success: true, message: "New lead created successfully" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Error creating new lead", error: err.message });
     }
 });
+
 
 
 
 // PUT Route to Update Deal Status
 app.put("/api/NewLeads/:id", async (req, res) => {
     const { id } = req.params;
-    const { leadName, name, email, phone, address, dealStatus, message } = req.body;
+    const { leadName, name, email, phone, address, organization, dealStatus, message, date } = req.body;
 
     try {
         const updatedLead = await NewLead.findByIdAndUpdate(
             id,
-            { leadName, name, email, phone, address, dealStatus, message },
-            { new: true } // Return the updated document
+            { leadName, name, email, phone, address, organization, dealStatus, message, date },
+            { new: true }
         );
 
         if (!updatedLead) {
             return res.status(404).json({ success: false, message: "Lead not found" });
         }
 
-        res.status(200).json({
-            success: true,
-            message: "Lead updated successfully",
-            lead: updatedLead,
-        });
+        res.status(200).json({ success: true, message: "Lead updated successfully", lead: updatedLead });
     } catch (err) {
-        res.status(500).json({
-            success: false,
-            message: "Error updating lead",
-            error: err.message,
-        });
+        res.status(500).json({ success: false, message: "Error updating lead", error: err.message });
     }
 });
+
 
 
 app.put("/api/NewLeads/edit/:id", async (req, res) => {
@@ -736,6 +713,8 @@ app.delete("/api/NewLeads/:id", async (req, res) => {
         });
     }
 });
+
+
 
 // Employee Schema
 const EmployeeSchema = new mongoose.Schema({
@@ -2172,3 +2151,58 @@ app.delete("/api/meetings/:id", async (req, res) => {
     }
 });
 
+// Define Schema & Model
+const empSalarySchema = new mongoose.Schema({
+    empId: String,   // Employee ID
+    name: String,
+    year: Number,
+    month: String,
+    status: String,   // Paid / Unpaid
+    amount: Number,
+    salaryDate: Date  // New field for Salary Date
+});
+
+const EmpSalary = mongoose.model("EmpSalary", empSalarySchema);
+
+// 1️⃣ Add or Update Salary Details
+app.post("/add-salary", async (req, res) => {
+    try {
+        const { empId, name, year, month, status, amount, salaryDate } = req.body;
+
+        let salaryRecord = await EmpSalary.findOne({ empId, year, month });
+
+        if (salaryRecord) {
+            salaryRecord.status = status;
+            salaryRecord.amount = amount;
+            salaryRecord.salaryDate = salaryDate;  // Update salaryDate if record exists
+        } else {
+            salaryRecord = new EmpSalary({ empId, name, year, month, status, amount, salaryDate });
+        }
+
+        await salaryRecord.save();
+        res.json({ success: true, message: "Salary details saved successfully!" });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 2️⃣ Get Salary Details for an Employee by Year
+app.get("/get-salary/:empId/:year", async (req, res) => {
+    try {
+        const { empId, year } = req.params;
+        const salaries = await EmpSalary.find({ empId, year });
+
+        res.json(salaries);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get("/get-all-salaries", async (req, res) => {
+    try {
+        const salaries = await EmpSalary.find(); // Fetch all salary records
+        res.json(salaries);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
