@@ -2206,3 +2206,165 @@ app.get("/get-all-salaries", async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+const clientProjectSchema = new mongoose.Schema(
+    {
+        leadName: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        clientName: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        finalAmount: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+        projectStatus: {
+            type: String,
+            enum: ['Active', 'On Hold', 'Completed'],
+            required: true,
+            default: 'Active',
+        },
+        projectId: {
+            type: String,
+            required: true,
+            unique: true,
+            trim: true,
+        },
+        projectPassword: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+    },
+    { timestamps: true }
+);
+
+const ClientProject = mongoose.model('ClientProject', clientProjectSchema);
+
+// ✅ POST Route - Save New ClientProject
+app.post('/api/client-projects', async (req, res) => {
+    try {
+        const { leadName, clientName, finalAmount, projectStatus, projectId, projectPassword } = req.body;
+
+        // Validate required fields
+        if (!leadName || !clientName || !finalAmount || !projectStatus || !projectId || !projectPassword) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        // Check for existing project ID
+        const existingProject = await ClientProject.findOne({ projectId });
+        if (existingProject) {
+            return res.status(400).json({ message: 'Project ID already exists' });
+        }
+
+        // Save new project
+        const newProject = new ClientProject({
+            leadName,
+            clientName,
+            finalAmount,
+            projectStatus,
+            projectId,
+            projectPassword,
+        });
+
+        await newProject.save();
+
+        res.status(201).json({ message: 'Project saved successfully', project: newProject });
+    } catch (error) {
+        console.error('Error saving project:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// ✅ GET Route - Fetch All ClientProjects
+app.get('/api/client-projects', async (req, res) => {
+    try {
+        const projects = await ClientProject.find();
+        res.status(200).json(projects);
+    } catch (error) {
+        console.error('Error fetching projects:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Define Finance Details Schema
+const financeDetailsSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    dealName: { type: String, required: true },
+    clientName: { type: String, required: true },
+    dueDate: { type: String },
+    advancePayment: { type: Number, default: 0 },
+    midPayment: { type: Number, default: 0 },
+    finalPayment: { type: Number, default: 0 },
+    amount: { type: Number, required: true },
+    balance: { type: Number, default: 0 },
+    paymentDate: {
+        advancedPDate: { type: String, default: null },
+        midPDate: { type: String, default: null },
+        finalPDate: { type: String, default: null }
+    }
+});
+
+// Create FinanceDetails model
+const FinanceDetails = mongoose.model('FinanceDetails', financeDetailsSchema);
+
+// POST route to create or update finance details
+app.post('/api/financeDetails', async (req, res) => {
+    const { id, dealName, clientName, dueDate, advancePayment, midPayment, finalPayment, amount, paymentDate } = req.body;
+
+    if (!id || !dealName || !clientName || amount == null) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    try {
+        let financeEntry = await FinanceDetails.findOne({ id });
+
+        if (financeEntry) {
+            // Update only the fields that are provided
+            financeEntry.dueDate = dueDate || financeEntry.dueDate;
+            financeEntry.advancePayment = advancePayment !== undefined ? advancePayment : financeEntry.advancePayment;
+            financeEntry.midPayment = midPayment !== undefined ? midPayment : financeEntry.midPayment;
+            financeEntry.finalPayment = finalPayment !== undefined ? finalPayment : financeEntry.finalPayment;
+            financeEntry.amount = amount;
+            financeEntry.balance = amount - (financeEntry.advancePayment + financeEntry.midPayment + financeEntry.finalPayment);
+
+            if (paymentDate) {
+                financeEntry.paymentDate.advancedPDate = paymentDate.advancedPDate || financeEntry.paymentDate.advancedPDate;
+                financeEntry.paymentDate.midPDate = paymentDate.midPDate || financeEntry.paymentDate.midPDate;
+                financeEntry.paymentDate.finalPDate = paymentDate.finalPDate || financeEntry.paymentDate.finalPDate;
+            }
+
+            const updatedFinance = await financeEntry.save();
+            return res.status(200).json(updatedFinance);
+        } else {
+            // Create a new entry if none exists
+            const newFinance = new FinanceDetails({
+                id,
+                dealName,
+                clientName,
+                dueDate,
+                advancePayment: advancePayment || 0,
+                midPayment: midPayment || 0,
+                finalPayment: finalPayment || 0,
+                amount,
+                balance: amount - ((advancePayment || 0) + (midPayment || 0) + (finalPayment || 0)),
+                paymentDate: {
+                    advancedPDate: paymentDate?.advancedPDate || null,
+                    midPDate: paymentDate?.midPDate || null,
+                    finalPDate: paymentDate?.finalPDate || null
+                }
+            });
+
+            const savedFinance = await newFinance.save();
+            return res.status(201).json(savedFinance);
+        }
+    } catch (error) {
+        console.error('Error saving or updating finance details:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
