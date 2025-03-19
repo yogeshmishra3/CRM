@@ -1803,8 +1803,6 @@ app.get("/api/sync-quotations-to-deals", async (req, res) => {
         res.status(500).json({ message: "Error syncing quotations to deals", error });
     }
 });
-
-
 // API Endpoint to Delete an Entire Meeting (Date) for a specific date
 app.delete('/api/meetings/:date', async (req, res) => {
     try {
@@ -2388,7 +2386,7 @@ const Meeting = mongoose.model("Meeting", meetingSchema);
 // Routes
 
 // Fetch meetings by date
-app.get("/api/meetings", async (req, res) => {
+app.get("/api/meetings/:date", async (req, res) => {
     try {
         const meetings = await Meeting.find({ date: req.params.date });
         res.json({ meetings });
