@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
@@ -26,6 +26,14 @@ const DataSchema = new mongoose.Schema({
 });
 
 const DataModel = mongoose.model('Data', DataSchema);
+
+const LeadsSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    date: { type: Date, required: true },
+    team: { type: String, required: true },
+    status: { type: String, required: true },
+});
+const LeadsModel = mongoose.model('Leads', LeadsSchema);
 
 // Define project schema
 const projectSchema = new mongoose.Schema({
@@ -494,6 +502,63 @@ app.put("/api/Newtasks/edit/:id", async (req, res) => {
     }
 });
 
+
+
+
+// Leads APIs
+app.get('/api/Leads', async (req, res) => {
+    try {
+        const Leads = await LeadsModel.find();
+        res.status(200).json({ success: true, Leads });
+    } catch (error) {
+        console.error('Error fetching Leads:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch Leads', error: error.message });
+    }
+});
+
+app.post('/api/Leads', async (req, res) => {
+    const { name, date, team, status } = req.body;
+    if (!name || !date || !team || !status) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    try {
+        const Leads = new LeadsModel({ name, date, team, status });
+        await Leads.save();
+        res.status(201).json({ success: true, message: 'Leads added', Leads });
+    } catch (error) {
+        console.error('Error adding Leads:', error);
+        res.status(500).json({ success: false, message: 'Error adding Leads', error: error.message });
+    }
+});
+
+app.put('/api/Leads/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, date, team, status } = req.body;
+    try {
+        const updatedLeads = await LeadsModel.findByIdAndUpdate(id, { name, date, team, status }, { new: true });
+        if (!updatedLeads) {
+            return res.status(404).json({ success: false, message: 'Leads not found' });
+        }
+        res.status(200).json({ success: true, message: 'Leads updated', Leads: updatedLeads });
+    } catch (error) {
+        console.error('Error updating Leads:', error);
+        res.status(500).json({ success: false, message: 'Error updating Leads', error: error.message });
+    }
+});
+
+app.delete('/api/Leads/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedLeads = await LeadsModel.findByIdAndDelete(id);
+        if (!deletedLeads) {
+            return res.status(404).json({ success: false, message: 'Leads not found' });
+        }
+        res.status(200).json({ success: true, message: 'Leads deleted' });
+    } catch (error) {
+        console.error('Error deleting Leads:', error);
+        res.status(500).json({ success: false, message: 'Error deleting Leads', error: error.message });
+    }
+});
 const ContactSchema = new mongoose.Schema({
     name: String,
     email: String,
@@ -552,7 +617,6 @@ app.delete('/api/contacts/:id', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
     }
 });
-
 
 
 
@@ -714,8 +778,6 @@ app.delete("/api/NewLeads/:id", async (req, res) => {
     }
 });
 
-
-
 // Employee Schema
 const EmployeeSchema = new mongoose.Schema({
     empId: { type: String, required: true, unique: true }, // Employee ID (Unique)
@@ -835,17 +897,85 @@ app.delete("/api/employees/:id", async (req, res) => {
     }
 });
 
-
-// Schema and Model
-const ServiceSchema = new mongoose.Schema({
-    name: { type: String, required: true },      // Service Name
-    dueDate: { type: Date, required: true },     // Due Date
+// Define Schema & Model
+const empSalarySchema = new mongoose.Schema({
+    empId: String,   // Employee ID
+    name: String,
+    year: Number,
+    month: String,
+    status: String,   // Paid / Unpaid
+    amount: Number,
+    salaryDate: Date  // New field for Salary Date
 });
+
+const EmpSalary = mongoose.model("EmpSalary", empSalarySchema);
+
+// 1️⃣ Add or Update Salary Details
+app.post("/add-salary", async (req, res) => {
+    try {
+        const { empId, name, year, month, status, amount, salaryDate } = req.body;
+
+        let salaryRecord = await EmpSalary.findOne({ empId, year, month });
+
+        if (salaryRecord) {
+            salaryRecord.status = status;
+            salaryRecord.amount = amount;
+            salaryRecord.salaryDate = salaryDate;  // Update salaryDate if record exists
+        } else {
+            salaryRecord = new EmpSalary({ empId, name, year, month, status, amount, salaryDate });
+        }
+
+        await salaryRecord.save();
+        res.json({ success: true, message: "Salary details saved successfully!" });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 2️⃣ Get Salary Details for an Employee by Year
+app.get("/get-salary/:empId/:year", async (req, res) => {
+    try {
+        const { empId, year } = req.params;
+        const salaries = await EmpSalary.find({ empId, year });
+
+        res.json(salaries);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get("/get-all-salaries", async (req, res) => {
+    try {
+        const salaries = await EmpSalary.find(); // Fetch all salary records
+        res.json(salaries);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
+
+
+const ServiceSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    dueDate: { type: Date, required: true },
+    buyDate: { type: Date, required: true },
+    serviceCost: { type: Number, required: true },
+    renewalHistory: [
+        {
+            renewalCost: { type: Number, required: true },
+            renewalDate: { type: Date, required: true },
+            newDueDate: { type: Date, required: true }
+        }
+    ]
+});
+
+
 
 const IntegrationSchema = new mongoose.Schema({
     provider: { type: String, required: true },  // Provider Name
-    services: [ServiceSchema],                  // List of Services
-}, { timestamps: true });                       // Created and Updated timestamps
+    services: [ServiceSchema],                   // List of Services
+}, { timestamps: true });                        // Created and Updated timestamps
 
 const Integration = mongoose.model("Integration", IntegrationSchema);
 
@@ -894,37 +1024,61 @@ app.get("/api/integrations/:id", async (req, res) => {
         res.status(500).json({ success: false, message: "Error fetching integration.", error: error.message });
     }
 });
-// Edit existing integration by ID
-app.put("/api/integrations/:id", async (req, res) => {
-    const { id } = req.params;
-    const { provider, services } = req.body;
 
-    // Validate the input
-    if (!provider || !services || services.length === 0) {
-        return res.status(400).json({ success: false, message: "Provider name and services are required." });
-    }
+// Edit existing integration by ID
+app.put("/api/integrations/:provider", async (req, res) => {
+    const { serviceName, renewalCost, renewalDate, newDueDate } = req.body;
 
     try {
-        // Find the integration by ID and update
-        const updatedIntegration = await Integration.findByIdAndUpdate(
-            id,
-            { provider, services },
-            { new: true }  // Return the updated document
-        );
+        const provider = await Integration.findOne({ provider: req.params.provider });
 
-        if (!updatedIntegration) {
+        if (!provider) {
+            return res.status(404).json({ message: "Provider not found" });
+        }
+
+        const service = provider.services.find(s => s.name === serviceName);
+        if (!service) {
+            return res.status(404).json({ message: "Service not found" });
+        }
+
+        // Add the new renewal record to the history
+        service.renewalHistory.push({
+            renewalCost: renewalCost,
+            renewalDate: renewalDate,
+            newDueDate: newDueDate
+        });
+
+        // Update the due date to reflect the latest renewal
+        service.dueDate = newDueDate;
+
+        await provider.save();
+
+        res.json({ message: "Service renewed successfully", updatedService: service });
+    } catch (error) {
+        console.error("Error updating service:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
+
+app.get("/api/integrations/:id", async (req, res) => {
+    try {
+        const integration = await Integration.findById(req.params.id);
+        if (!integration) {
             return res.status(404).json({ success: false, message: "Integration not found." });
         }
 
         res.status(200).json({
             success: true,
-            message: "Integration updated successfully!",
-            data: updatedIntegration
+            data: integration
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Error updating integration.", error: error.message });
+        res.status(500).json({ success: false, message: "Error fetching integration.", error: error.message });
     }
 });
+
+
+
 
 // Delete integration
 app.delete("/api/integrations/:id", async (req, res) => {
@@ -941,7 +1095,6 @@ app.delete("/api/integrations/:id", async (req, res) => {
         res.status(500).json({ success: false, message: "Error deleting integration.", error: error.message });
     }
 });
-
 
 
 
@@ -1070,47 +1223,73 @@ app.delete("/api/quotes/:id", async (req, res) => {
 });
 
 
-app.listen(5000, () => console.log('Server running on port 5000'));
+app.listen(5001, () => console.log('Server running on port 5001'));
 // Export for serverless functions
 module.exports = (req, res) => {
     app(req, res);
 };
 
-// New Quotation Schema
-const newQuotationSchema = new mongoose.Schema({
-    dealName: String, // Storing deal name
-    CompanyRequirement: String,
-    quotationNo: String,
-    date: String,
+// New schema for storing only required details
+// AllQuotations Schema
+const allQuotationsSchema = new mongoose.Schema({
+    dealName: String,
     clientName: String,
-    department: String,
-    items: [
-        {
-            description: String,
-            amount: Number,
-        },
-    ],
+    totalCost: Number,
 });
 
-// New Quotation Model
+const AllQuotation = mongoose.model("AllQuotation", allQuotationsSchema);
+
+
+// API Route to Save Only Required Data
+app.post("/api/allquotations", async (req, res) => {
+    try {
+        const { dealName, clientName, totalCost } = req.body;
+        const newQuotation = new AllQuotation({ dealName, clientName, totalCost });
+        const savedQuotation = await newQuotation.save();
+        res.status(201).json(savedQuotation);
+    } catch (err) {
+        res.status(400).json({ error: "Failed to save quotation", details: err });
+    }
+});
+
+// Fetch All Quotations
+app.get("/api/allquotations", async (req, res) => {
+    try {
+        const quotations = await AllQuotation.find();
+        res.status(200).json(quotations);
+    } catch (err) {
+        res.status(400).json({ error: "Failed to fetch quotations", details: err });
+    }
+});
+
+
+
+// Backend: Update the Mongoose schema to store only required fields
+const newQuotationSchema = new mongoose.Schema({
+    clientName: String,
+    dealName: String,
+    Totalamount: Number,
+    date: String, // Store date as a string in "YYYY-MM-DD" format
+});
+
+
 const NewQuotation = mongoose.model("NewQuotation", newQuotationSchema);
 
-// Routes
-// Create a new quotation
+// Update the POST route to only accept clientName, dealName, and Totalamount
 app.post("/api/newquotations", async (req, res) => {
     try {
-        const { dealName } = req.body;
+        const { clientName, dealName, Totalamount, date } = req.body;
 
-        // Check if a deal with the same name exists in the Deal collection
-        const existingDeal = await Deal.findOne({ name: dealName });
-        if (existingDeal) {
-            // If a matching deal exists, delete it from the Deal collection
-            await Deal.findOneAndDelete({ name: dealName });
-            console.log(`Deleted deal with name: ${dealName} from Deal collection`);
-        }
+        // Ensure date is formatted as YYYY-MM-DD
+        const formattedDate = date ? new Date(date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
 
-        // Proceed to create the new quotation
-        const newQuotation = new NewQuotation(req.body);
+        const newQuotation = new NewQuotation({
+            clientName,
+            dealName,
+            Totalamount,
+            date: formattedDate // Store formatted date
+        });
+
         const savedQuotation = await newQuotation.save();
         res.status(201).json(savedQuotation);
     } catch (err) {
@@ -1119,15 +1298,17 @@ app.post("/api/newquotations", async (req, res) => {
 });
 
 
+
 // Get all quotations
 app.get("/api/newquotations", async (req, res) => {
     try {
-        const quotations = await NewQuotation.find(); // dealName is part of the schema
+        const quotations = await NewQuotation.find({}, "clientName dealName Totalamount");
         res.status(200).json(quotations);
     } catch (err) {
         res.status(400).json({ error: "Failed to fetch new quotations", details: err });
     }
 });
+
 
 // Get a single quotation by ID
 app.get("/api/newquotations/:id", async (req, res) => {
@@ -1164,6 +1345,92 @@ app.delete("/api/newquotations/:id", async (req, res) => {
     }
 });
 
+
+const clientProjectSchema = new mongoose.Schema(
+    {
+        leadName: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        clientName: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        finalAmount: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+        projectStatus: {
+            type: String,
+            enum: ['Active', 'On Hold', 'Completed'],
+            required: true,
+            default: 'Active',
+        },
+        projectId: {
+            type: String,
+            required: true,
+            unique: true,
+            trim: true,
+        },
+        projectPassword: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+    },
+    { timestamps: true }
+);
+
+const ClientProject = mongoose.model('ClientProject', clientProjectSchema);
+
+// ✅ POST Route - Save New ClientProject
+app.post('/api/client-projects', async (req, res) => {
+    try {
+        const { leadName, clientName, finalAmount, projectStatus, projectId, projectPassword } = req.body;
+
+        // Validate required fields
+        if (!leadName || !clientName || !finalAmount || !projectStatus || !projectId || !projectPassword) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        // Check for existing project ID
+        const existingProject = await ClientProject.findOne({ projectId });
+        if (existingProject) {
+            return res.status(400).json({ message: 'Project ID already exists' });
+        }
+
+        // Save new project
+        const newProject = new ClientProject({
+            leadName,
+            clientName,
+            finalAmount,
+            projectStatus,
+            projectId,
+            projectPassword,
+        });
+
+        await newProject.save();
+
+        res.status(201).json({ message: 'Project saved successfully', project: newProject });
+    } catch (error) {
+        console.error('Error saving project:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// ✅ GET Route - Fetch All ClientProjects
+app.get('/api/client-projects', async (req, res) => {
+    try {
+        const projects = await ClientProject.find();
+        res.status(200).json(projects);
+    } catch (error) {
+        console.error('Error fetching projects:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 // Deal Schema
 const dealSchema = new mongoose.Schema({
@@ -1474,8 +1741,8 @@ const deleteDuplicateDeals = async (transactionsData, quotationsData) => {
 app.get("/api/delete-duplicate-deals", async (req, res) => {
     try {
         const [dealsResponse, quotationsResponse] = await Promise.all([
-            fetch("http://localhost:5000/api/dealmanagement"),
-            fetch("http://localhost:5000/api/newquotations"),
+            fetch("http://localhost:5001/api/dealmanagement"),
+            fetch("http://localhost:5001/api/newquotations"),
         ]);
 
         if (!dealsResponse.ok || !quotationsResponse.ok) {
@@ -1498,7 +1765,7 @@ app.get("/api/delete-duplicate-deals", async (req, res) => {
 app.get("/api/sync-quotations-to-deals", async (req, res) => {
     try {
         // Fetch quotations data
-        const quotationsResponse = await fetch("http://localhost:5000/api/newquotations");
+        const quotationsResponse = await fetch("http://localhost:5001/api/newquotations");
 
         if (!quotationsResponse.ok) {
             throw new Error("Failed to fetch quotations");
@@ -1534,6 +1801,107 @@ app.get("/api/sync-quotations-to-deals", async (req, res) => {
     } catch (error) {
         console.error("Error syncing quotations to deals:", error);
         res.status(500).json({ message: "Error syncing quotations to deals", error });
+    }
+});
+
+const meetingSchema = new mongoose.Schema({
+    date: { type: String, required: true }, // Format: YYYY-MM-DD
+    meetings: [
+        {
+            startTime: { type: String, required: true },
+            endTime: { type: String, required: true },
+            note: { type: String, required: true },
+            keyword: { type: String },
+        },
+    ],
+});
+
+const Meeting = mongoose.model('Meeting', meetingSchema);
+
+// Routes
+
+// Get meetings for a specific date
+app.get('/api/meetings', async (req, res) => {
+    try {
+        const meetings = await Meeting.find();
+        res.status(200).json(meetings);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching meetings', error });
+    }
+});
+
+// Add a meeting to a specific date
+app.post('/api/meetings', async (req, res) => {
+    try {
+        const { date, startTime, endTime, note, keyword } = req.body;
+
+        if (!date || !startTime || !endTime || !note) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        const existingMeetings = await Meeting.findOne({ date });
+        if (existingMeetings) {
+            const conflict = existingMeetings.meetings.some(
+                (m) =>
+                    (startTime >= m.startTime && startTime < m.endTime) ||
+                    (endTime > m.startTime && endTime <= m.endTime)
+            );
+            if (conflict) {
+                return res.status(400).json({ message: 'Time slot is already occupied' });
+            }
+        }
+
+        const updatedMeeting = await Meeting.findOneAndUpdate(
+            { date },
+            { $push: { meetings: { startTime, endTime, note, keyword } } },
+            { new: true, upsert: true }
+        );
+
+        res.status(201).json(updatedMeeting);
+    } catch (error) {
+        res.status(500).json({ message: 'Error adding meeting', error });
+    }
+});
+
+// API Endpoint to Edit a Meeting for a specific date
+app.put('/api/meetings/:date/:index', async (req, res) => {
+    try {
+        const { date, index } = req.params;
+        const { startTime, endTime, note, keyword } = req.body;
+
+        if (!startTime || !endTime || !note) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        const meeting = await Meeting.findOne({ date });
+        if (!meeting || !meeting.meetings[index]) {
+            return res.status(404).json({ message: 'Meeting not found' });
+        }
+
+        meeting.meetings[index] = { startTime, endTime, note, keyword };
+        await meeting.save();
+
+        res.status(200).json(meeting);
+    } catch (error) {
+        res.status(500).json({ message: 'Error editing meeting', error });
+    }
+});
+
+// API Endpoint to Delete a Meeting for a specific date
+// API Endpoint to Delete an Entire Meeting (Date) for a specific date
+app.delete('/api/meetings/:date', async (req, res) => {
+    try {
+        const { date } = req.params;
+
+        const deletedMeeting = await Meeting.findOneAndDelete({ date });
+
+        if (!deletedMeeting) {
+            return res.status(404).json({ message: 'Meeting not found for the specified date' });
+        }
+
+        res.status(200).json({ message: 'Meeting deleted successfully', deletedMeeting });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting meeting', error });
     }
 });
 
@@ -1724,7 +2092,6 @@ app.put("/api/complaints/:id", async (req, res) => {
     }
 });
 
-// Define Finance Details Schema
 // Define Finance Details Schema
 const financeDetailsSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
@@ -2088,207 +2455,5 @@ app.delete("/api/recyclebin/:id", async (req, res) => {
         res.json({ message: "Archived lead deleted permanently", deletedLead });
     } catch (error) {
         res.status(500).json({ message: "Error deleting archived lead", error });
-    }
-});
-// Define Meeting Schema
-const meetingSchema = new mongoose.Schema({
-    date: { type: String, required: true },
-    startTime: { type: String, required: true },
-    endTime: { type: String, required: true },
-    note: { type: String, required: true },
-    keyword: { type: String, required: true }
-});
-
-const Meeting = mongoose.model("Meeting", meetingSchema);
-
-// Routes
-
-// Fetch meetings by date
-app.get("/api/meetings/:date", async (req, res) => {
-    try {
-        const meetings = await Meeting.find({ date: req.params.date });
-        res.json({ meetings });
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching meetings", error });
-    }
-});
-
-// Add a new meeting
-app.post("/api/meetings", async (req, res) => {
-    try {
-        const { date, startTime, endTime, note, keyword } = req.body;
-        const newMeeting = new Meeting({ date, startTime, endTime, note, keyword });
-        await newMeeting.save();
-        res.status(201).json({ message: "Meeting saved successfully" });
-    } catch (error) {
-        res.status(500).json({ message: "Error saving meeting", error });
-    }
-});
-
-// Update an existing meeting
-app.put("/api/meetings/update", async (req, res) => {
-    try {
-        const { date, startTime, endTime, note, keyword } = req.body;
-        const meeting = await Meeting.findOneAndUpdate(
-            { date, startTime },
-            { endTime, note, keyword },
-            { new: true }
-        );
-        if (!meeting) return res.status(404).json({ message: "Meeting not found" });
-        res.json({ message: "Meeting updated successfully", meeting });
-    } catch (error) {
-        res.status(500).json({ message: "Error updating meeting", error });
-    }
-});
-
-// Delete a meeting
-app.delete("/api/meetings/:id", async (req, res) => {
-    try {
-        const deletedMeeting = await Meeting.findByIdAndDelete(req.params.id);
-        if (!deletedMeeting) return res.status(404).json({ message: "Meeting not found" });
-        res.json({ message: "Meeting deleted successfully" });
-    } catch (error) {
-        res.status(500).json({ message: "Error deleting meeting", error });
-    }
-});
-
-// Define Schema & Model
-const empSalarySchema = new mongoose.Schema({
-    empId: String,   // Employee ID
-    name: String,
-    year: Number,
-    month: String,
-    status: String,   // Paid / Unpaid
-    amount: Number,
-    salaryDate: Date  // New field for Salary Date
-});
-
-const EmpSalary = mongoose.model("EmpSalary", empSalarySchema);
-
-// 1️⃣ Add or Update Salary Details
-app.post("/add-salary", async (req, res) => {
-    try {
-        const { empId, name, year, month, status, amount, salaryDate } = req.body;
-
-        let salaryRecord = await EmpSalary.findOne({ empId, year, month });
-
-        if (salaryRecord) {
-            salaryRecord.status = status;
-            salaryRecord.amount = amount;
-            salaryRecord.salaryDate = salaryDate;  // Update salaryDate if record exists
-        } else {
-            salaryRecord = new EmpSalary({ empId, name, year, month, status, amount, salaryDate });
-        }
-
-        await salaryRecord.save();
-        res.json({ success: true, message: "Salary details saved successfully!" });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// 2️⃣ Get Salary Details for an Employee by Year
-app.get("/get-salary/:empId/:year", async (req, res) => {
-    try {
-        const { empId, year } = req.params;
-        const salaries = await EmpSalary.find({ empId, year });
-
-        res.json(salaries);
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.get("/get-all-salaries", async (req, res) => {
-    try {
-        const salaries = await EmpSalary.find(); // Fetch all salary records
-        res.json(salaries);
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-const clientProjectSchema = new mongoose.Schema(
-    {
-        leadName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        clientName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        finalAmount: {
-            type: Number,
-            required: true,
-            min: 0,
-        },
-        projectStatus: {
-            type: String,
-            enum: ['Active', 'On Hold', 'Completed'],
-            required: true,
-            default: 'Active',
-        },
-        projectId: {
-            type: String,
-            required: true,
-            unique: true,
-            trim: true,
-        },
-        projectPassword: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-    },
-    { timestamps: true }
-);
-
-const ClientProject = mongoose.model('ClientProject', clientProjectSchema);
-
-// ✅ POST Route - Save New ClientProject
-app.post('/api/client-projects', async (req, res) => {
-    try {
-        const { leadName, clientName, finalAmount, projectStatus, projectId, projectPassword } = req.body;
-
-        // Validate required fields
-        if (!leadName || !clientName || !finalAmount || !projectStatus || !projectId || !projectPassword) {
-            return res.status(400).json({ message: 'All fields are required' });
-        }
-
-        // Check for existing project ID
-        const existingProject = await ClientProject.findOne({ projectId });
-        if (existingProject) {
-            return res.status(400).json({ message: 'Project ID already exists' });
-        }
-
-        // Save new project
-        const newProject = new ClientProject({
-            leadName,
-            clientName,
-            finalAmount,
-            projectStatus,
-            projectId,
-            projectPassword,
-        });
-
-        await newProject.save();
-
-        res.status(201).json({ message: 'Project saved successfully', project: newProject });
-    } catch (error) {
-        console.error('Error saving project:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// ✅ GET Route - Fetch All ClientProjects
-app.get('/api/client-projects', async (req, res) => {
-    try {
-        const projects = await ClientProject.find();
-        res.status(200).json(projects);
-    } catch (error) {
-        console.error('Error fetching projects:', error);
-        res.status(500).json({ message: 'Server error' });
     }
 });
