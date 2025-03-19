@@ -2388,7 +2388,7 @@ const Meeting = mongoose.model("Meeting", meetingSchema);
 // Routes
 
 // Fetch meetings by date
-app.get("/api/meetings/:date", async (req, res) => {
+app.get("/api/meetings", async (req, res) => {
     try {
         const meetings = await Meeting.find({ date: req.params.date });
         res.json({ meetings });
