@@ -559,66 +559,6 @@ app.delete('/api/Leads/:id', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error deleting Leads', error: error.message });
     }
 });
-const ContactSchema = new mongoose.Schema({
-    name: String,
-    email: String,
-    phone: String,
-    address: String,
-});
-const Contact = mongoose.model('Contact', ContactSchema);
-
-// Contact APIs
-app.get('/api/contacts', async (req, res) => {
-    try {
-        const contacts = await Contact.find();
-        res.status(200).json({ success: true, contacts });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error fetching contacts', error: err.message });
-    }
-});
-
-app.post('/api/contacts', async (req, res) => {
-    const { name, email, phone, address } = req.body;
-    if (!name || !email || !phone || !address) {
-        return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-    try {
-        const contact = new Contact({ name, email, phone, address });
-        await contact.save();
-        res.status(201).json({ success: true, message: 'Contact created successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error creating contact', error: err.message });
-    }
-});
-
-app.put('/api/contacts/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, email, phone, address } = req.body;
-    try {
-        const contact = await Contact.findByIdAndUpdate(id, { name, email, phone, address }, { new: true });
-        if (!contact) {
-            return res.status(404).json({ success: false, message: 'Contact not found' });
-        }
-        res.status(200).json({ success: true, message: 'Contact updated successfully', contact });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error updating contact', error: err.message });
-    }
-});
-
-app.delete('/api/contacts/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const contact = await Contact.findByIdAndDelete(id);
-        if (!contact) {
-            return res.status(404).json({ success: false, message: 'Contact not found' });
-        }
-        res.status(200).json({ success: true, message: 'Contact deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
-    }
-});
-
-
 
 const NewLeadSchema = new mongoose.Schema({
     leadName: String,
@@ -1098,58 +1038,6 @@ app.delete("/api/integrations/:id", async (req, res) => {
 
 
 
-// Contact APIs
-app.get('/api/contacts', async (req, res) => {
-    try {
-        const contacts = await Contact.find();
-        res.status(200).json({ success: true, contacts });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error fetching contacts', error: err.message });
-    }
-});
-
-app.post('/api/contacts', async (req, res) => {
-    const { name, email, phone, address } = req.body;
-    if (!name || !email || !phone || !address) {
-        return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-    try {
-        const contact = new Contact({ name, email, phone, address });
-        await contact.save();
-        res.status(201).json({ success: true, message: 'Contact created successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error creating contact', error: err.message });
-    }
-});
-
-app.put('/api/contacts/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, email, phone, address } = req.body;
-    try {
-        const contact = await Contact.findByIdAndUpdate(id, { name, email, phone, address }, { new: true });
-        if (!contact) {
-            return res.status(404).json({ success: false, message: 'Contact not found' });
-        }
-        res.status(200).json({ success: true, message: 'Contact updated successfully', contact });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error updating contact', error: err.message });
-    }
-});
-
-app.delete('/api/contacts/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const contact = await Contact.findByIdAndDelete(id);
-        if (!contact) {
-            return res.status(404).json({ success: false, message: 'Contact not found' });
-        }
-        res.status(200).json({ success: true, message: 'Contact deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Error deleting contact', error: err.message });
-    }
-});
-
-// Quote Model
 const Quote = mongoose.model("Quote", new mongoose.Schema({
     date: { type: Date, required: true },
     title: { type: String, required: true },
@@ -2162,6 +2050,12 @@ app.post("/api/clientDetail", async (req, res) => {
             return res.status(400).json({ success: false, message: "Client ID already exists" });
         }
 
+        // Check if email already exists
+        const existingEmail = await Client.findOne({ email });
+        if (existingEmail) {
+            return res.status(400).json({ success: false, message: "Email address already exists. Duplicate email cannot be accepted." });
+        }
+
         // Ensure other fields are valid
         if (!name || !email || !phone || !address || !companyname || !dob || !industry || !city) {
             return res.status(400).json({ success: false, message: "All required fields must be provided" });
@@ -2192,6 +2086,29 @@ app.post("/api/clientDetail", async (req, res) => {
 
     } catch (err) {
         console.error("Error creating client:", err);  // Detailed error log
+
+        // Check for MongoDB duplicate key error (code 11000)
+        if (err.code === 11000) {
+            // Check if the error is related to email duplication
+            if (err.keyPattern && err.keyPattern.email) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Email address already exists. Duplicate email cannot be accepted."
+                });
+            } else if (err.keyPattern && err.keyPattern.clientId) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Client ID already exists. Please use a different Client ID."
+                });
+            }
+            // Generic duplicate key error
+            return res.status(400).json({
+                success: false,
+                message: "Duplicate entry detected. Please check your data and try again."
+            });
+        }
+
+        // Default error response
         res.status(500).json({ success: false, message: "Error creating client", error: err.message });
     }
 });
