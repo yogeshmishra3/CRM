@@ -965,41 +965,23 @@ app.get("/api/integrations/:id", async (req, res) => {
     }
 });
 
-// Edit existing integration by ID
-app.put("/api/integrations/:provider", async (req, res) => {
-    const { serviceName, renewalCost, renewalDate, newDueDate } = req.body;
-
+app.put("/api/integrations/:id", async (req, res) => {
     try {
-        const provider = await Integration.findOne({ provider: req.params.provider });
+        const updatedIntegration = await Integration.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
 
-        if (!provider) {
-            return res.status(404).json({ message: "Provider not found" });
+        if (!updatedIntegration) {
+            return res.status(404).json({ success: false, message: "Integration not found." });
         }
 
-        const service = provider.services.find(s => s.name === serviceName);
-        if (!service) {
-            return res.status(404).json({ message: "Service not found" });
-        }
-
-        // Add the new renewal record to the history
-        service.renewalHistory.push({
-            renewalCost: renewalCost,
-            renewalDate: renewalDate,
-            newDueDate: newDueDate
-        });
-
-        // Update the due date to reflect the latest renewal
-        service.dueDate = newDueDate;
-
-        await provider.save();
-
-        res.json({ message: "Service renewed successfully", updatedService: service });
+        res.status(200).json({ success: true, data: updatedIntegration });
     } catch (error) {
-        console.error("Error updating service:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        res.status(500).json({ success: false, message: "Error updating integration.", error: error.message });
     }
 });
-
 
 app.get("/api/integrations/:id", async (req, res) => {
     try {
