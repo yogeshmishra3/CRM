@@ -1140,6 +1140,7 @@ const newQuotationSchema = new mongoose.Schema({
     dealName: String,
     Totalamount: Number,
     date: String, // Store date as a string in "YYYY-MM-DD" format
+    pdfUrl: String,
 });
 
 
@@ -1148,7 +1149,7 @@ const NewQuotation = mongoose.model("NewQuotation", newQuotationSchema);
 // Update the POST route to only accept clientName, dealName, and Totalamount
 app.post("/api/newquotations", async (req, res) => {
     try {
-        const { clientName, dealName, Totalamount, date } = req.body;
+        const { clientName, dealName, Totalamount, date, pdfUrl } = req.body;
 
         // Ensure date is formatted as YYYY-MM-DD
         const formattedDate = date ? new Date(date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
@@ -1157,7 +1158,8 @@ app.post("/api/newquotations", async (req, res) => {
             clientName,
             dealName,
             Totalamount,
-            date: formattedDate // Store formatted date
+            date: formattedDate,
+            pdfUrl: pdfUrl,
         });
 
         const savedQuotation = await newQuotation.save();
@@ -1172,7 +1174,7 @@ app.post("/api/newquotations", async (req, res) => {
 // Get all quotations
 app.get("/api/newquotations", async (req, res) => {
     try {
-        const quotations = await NewQuotation.find({}, "clientName dealName Totalamount");
+        const quotations = await NewQuotation.find({}, "clientName dealName Totalamount date pdfUrl");
         res.status(200).json(quotations);
     } catch (err) {
         res.status(400).json({ error: "Failed to fetch new quotations", details: err });
