@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 require('dotenv').config();
-
+// Import routes
 const projectRoutes = require('./routes/projectRoutes');
 const projectDetailsRoutes = require('./routes/projectDetailsRoutes');
 const taskRoutes = require('./routes/taskRoutes');
@@ -61,10 +61,7 @@ app.get('/', (req, res) => {
     res.send('MVC Backend API is running');
 });
 
-// Start the server
-if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}
+
 
 // Export for serverless functions or testing
 module.exports = app;
