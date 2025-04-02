@@ -2,8 +2,8 @@
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+require('dotenv').config();
 
-// Import routes
 const projectRoutes = require('./routes/projectRoutes');
 const projectDetailsRoutes = require('./routes/projectDetailsRoutes');
 const taskRoutes = require('./routes/taskRoutes');
@@ -25,18 +25,16 @@ const integrationRoutes = require('./routes/integrationRoutes');
 const quoteRoutes = require('./routes/quoteRoutes');
 const quotationRoutes = require('./routes/quotationRoutes');
 
-// Initialize express app
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT;
 
-// Connect to MongoDB
+
 connectDB();
 
-// Middleware
+
 app.use(cors());
 app.use(express.json());
 
-// Use routes
 app.use('/api', projectRoutes);
 app.use('/api', projectDetailsRoutes);
 app.use('/api', taskRoutes);
