@@ -2,6 +2,10 @@
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+require('dotenv').config();
+
+// Set NODE_TLS_REJECT_UNAUTHORIZED to 0 for development
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 // Import routes
 const projectRoutes = require('./routes/projectRoutes');
@@ -24,10 +28,11 @@ const newLeadRoutes = require('./routes/newLeadRoutes');
 const integrationRoutes = require('./routes/integrationRoutes');
 const quoteRoutes = require('./routes/quoteRoutes');
 const quotationRoutes = require('./routes/quotationRoutes');
+const emailRoutes = require('./routes/emailRoutes');
 
 // Initialize express app
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT;
 
 // Connect to MongoDB
 connectDB();
@@ -57,16 +62,17 @@ app.use('/api', newLeadRoutes);
 app.use('/api', integrationRoutes);
 app.use('/api', quoteRoutes);
 app.use('/api', quotationRoutes);
+app.use('/api', emailRoutes);
 
-// Basic route for testing
+
 app.get('/', (req, res) => {
     res.send('MVC Backend API is running');
 });
 
-// Start the server
+
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
-// Export for serverless functions or testing
+
 module.exports = app;
