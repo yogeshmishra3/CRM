@@ -44,9 +44,12 @@ exports.createInvoice = async (req, res) => {
 // Get all invoices
 exports.getAllInvoices = async (req, res) => {
     try {
+        console.log('Fetching all invoices...');
         const invoices = await Invoice.find().sort({ date: -1 });
+        console.log(`Found ${invoices.length} invoices`);
         res.json(invoices);
     } catch (error) {
+        console.error('Error in getAllInvoices:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -64,8 +67,8 @@ exports.getInvoiceById = async (req, res) => {
     }
 };
 
-// Update an invoice
-exports.updateInvoice = async (req, res) => {
+// Add this controller function
+exports.createOrUpdateInvoice = async (req, res) => {
     try {
         const {
             invoiceNumber,
@@ -79,33 +82,78 @@ exports.updateInvoice = async (req, res) => {
             subtotal,
             taxRate,
             tax,
-            total
+            total,
+            _id // Optionally include _id in the request
         } = req.body;
 
-        const updatedInvoice = await Invoice.findByIdAndUpdate(
-            req.params.id,
-            {
-                invoiceNumber,
-                billTo,
-                contactPhone,
-                date,
-                contactEmail,
-                customerId,
-                contactName,
-                items,
-                subtotal,
-                taxRate,
-                tax,
-                total
-            },
-            { new: true }
-        );
-
-        if (!updatedInvoice) {
-            return res.status(404).json({ message: 'Invoice not found' });
+        let invoice;
+        
+        // If we have an _id, update the existing invoice
+        if (_id) {
+            invoice = await Invoice.findByIdAndUpdate(
+                _id,
+                {
+                    invoiceNumber,
+                    billTo,
+                    contactPhone,
+                    date,
+                    contactEmail,
+                    customerId,
+                    contactName,
+                    items,
+                    subtotal,
+                    taxRate,
+                    tax,
+                    total
+                },
+                { new: true }
+            );
+        } 
+        // Otherwise look up by invoice number
+        else {
+            // Try to find an invoice with the same invoice number
+            const existingInvoice = await Invoice.findOne({ invoiceNumber });
+            
+            if (existingInvoice) {
+                // Update existing invoice
+                invoice = await Invoice.findByIdAndUpdate(
+                    existingInvoice._id,
+                    {
+                        billTo,
+                        contactPhone,
+                        date,
+                        contactEmail,
+                        customerId,
+                        contactName,
+                        items,
+                        subtotal,
+                        taxRate,
+                        tax,
+                        total
+                    },
+                    { new: true }
+                );
+            } else {
+                // Create new invoice
+                invoice = new Invoice({
+                    invoiceNumber,
+                    billTo,
+                    contactPhone,
+                    date,
+                    contactEmail,
+                    customerId,
+                    contactName,
+                    items,
+                    subtotal,
+                    taxRate,
+                    tax,
+                    total
+                });
+                await invoice.save();
+            }
         }
 
-        res.json(updatedInvoice);
+        res.status(200).json(invoice);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
